@@ -1,0 +1,704 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Panel de Administración - Sistema de Propinas</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Arial', sans-serif;
+            background: #f8f9fa;
+            min-height: 100vh;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%);
+            color: white;
+            padding: 20px 0;
+            text-align: center;
+            position: relative;
+        }
+        
+        .logout-btn {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            padding: 8px 16px;
+            background: rgba(255,255,255,0.2);
+            color: white;
+            text-decoration: none;
+            border-radius: 6px;
+            font-size: 14px;
+            transition: background 0.3s;
+        }
+        
+        .logout-btn:hover {
+            background: rgba(255,255,255,0.3);
+        }
+        
+        .header h1 {
+            font-size: 2rem;
+            margin-bottom: 10px;
+        }
+        
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        .nav-buttons {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 30px;
+            flex-wrap: wrap;
+        }
+        
+        .nav-btn {
+            padding: 10px 20px;
+            background: #fff;
+            border: 2px solid #667eea;
+            color: #667eea;
+            border-radius: 8px;
+            text-decoration: none;
+            font-weight: 500;
+            transition: all 0.3s;
+        }
+        
+        .nav-btn:hover {
+            background: #667eea;
+            color: white;
+        }
+        
+        .nav-btn.logout {
+            background: #6c757d;
+            color: white;
+            border-color: #6c757d;
+        }
+        
+        .nav-btn.logout:hover {
+            background: #5a6268;
+        }
+        
+        .admin-section {
+            background: white;
+            padding: 30px;
+            border-radius: 15px;
+            margin-bottom: 30px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+        }
+        
+        .section-title {
+            font-size: 1.5rem;
+            color: #333;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #e74c3c;
+        }
+        
+        .form-group {
+            margin-bottom: 20px;
+        }
+        
+        label {
+            display: block;
+            margin-bottom: 8px;
+            color: #555;
+            font-weight: 600;
+        }
+        
+        input, select, textarea {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            font-size: 16px;
+            transition: border-color 0.3s;
+        }
+        
+        input:focus, select:focus, textarea:focus {
+            outline: none;
+            border-color: #e74c3c;
+        }
+        
+        textarea {
+            resize: vertical;
+            min-height: 100px;
+        }
+        
+        .empleados-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+        
+        .empleado-checkbox {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px;
+            background: #f8f9fa;
+            border-radius: 8px;
+            border: 2px solid transparent;
+            transition: all 0.3s;
+        }
+        
+        .empleado-checkbox:hover {
+            background: #e9ecef;
+        }
+        
+        .empleado-checkbox.selected {
+            background: #e3f2fd;
+            border-color: #2196f3;
+        }
+        
+        .empleado-checkbox input[type="checkbox"] {
+            width: auto;
+            margin: 0;
+        }
+        
+        .btn {
+            padding: 12px 30px;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        
+        .btn-primary {
+            background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%);
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(231, 76, 60, 0.3);
+        }
+        
+        .btn-secondary {
+            background: #6c757d;
+            color: white;
+        }
+        
+        .btn-secondary:hover {
+            background: #5a6268;
+        }
+        
+        .empleados-list {
+            margin-top: 20px;
+        }
+        
+        .empleado-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 8px;
+            margin-bottom: 10px;
+        }
+        
+        .empleado-info {
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .empleado-nombre {
+            font-weight: 600;
+            margin-bottom: 4px;
+        }
+        
+        .empleado-actions {
+            display: flex;
+            gap: 8px;
+        }
+        
+        .btn-small {
+            padding: 6px 12px;
+            border: none;
+            border-radius: 4px;
+            font-size: 12px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        
+        .btn-edit {
+            background: #007bff;
+            color: white;
+        }
+        
+        .btn-edit:hover {
+            background: #0056b3;
+        }
+        
+        .btn-delete {
+            background: #dc3545;
+            color: white;
+        }
+        
+        .btn-delete:hover {
+            background: #c82333;
+        }
+        
+        .success-message, .error-message {
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            font-weight: 500;
+        }
+        
+        .success-message {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        
+        .error-message {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        
+        .selected-count {
+            margin-top: 10px;
+            font-weight: 600;
+            color: #e74c3c;
+        }
+        
+        @media (max-width: 768px) {
+            .container {
+                padding: 10px;
+            }
+            
+            .admin-section {
+                padding: 20px;
+            }
+            
+            .empleados-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .nav-buttons {
+                flex-direction: column;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <a href="/logout" class="logout-btn">🚪 Salir</a>
+        <h1>⚙️ Panel de Administración</h1>
+        <p>Gestión de empleados y propinas</p>
+    </div>
+    
+    <div class="container">
+        <% if (typeof error !== 'undefined' && error) { %>
+            <div class="error-message">
+                <strong>Error:</strong> <%= error %>
+            </div>
+        <% } %>
+        
+        <div class="nav-buttons">
+            <a href="/" class="nav-btn">← Volver al Inicio</a>
+            <a href="/empleados" class="nav-btn">👥 Vista Empleados</a>
+            <a href="/historico" class="nav-btn">📊 Histórico</a>
+            <a href="/admin/modificacion" class="nav-btn">✏️ Modificar Propinas</a>
+            <a href="/logout" class="nav-btn logout">🚪 Cerrar Sesión</a>
+        </div>
+        
+        <!-- Sección: Agregar Empleado -->
+        <div class="admin-section">
+            <h2 class="section-title">👤 Agregar Nuevo Empleado</h2>
+            <div class="form-group">
+                <label for="nuevo-empleado">Nombre del empleado:</label>
+                <input type="text" id="nuevo-empleado" placeholder="Ej: María González">
+            </div>
+            <button class="btn btn-secondary" onclick="agregarEmpleado()">Agregar Empleado</button>
+        </div>
+        
+        <!-- Sección: Registrar Propinas -->
+        <div class="admin-section">
+            <h2 class="section-title">💰 Registrar Propinas del Día</h2>
+            
+            <div class="form-group">
+                <label for="fecha-propina">Fecha:</label>
+                <div style="display: flex; gap: 10px; align-items: center;">
+                    <input type="date" id="fecha-propina" value="<%= new Date().toISOString().split('T')[0] %>" style="flex: 1;">
+                    <button class="btn btn-secondary" onclick="buscarPropinasFecha()" style="flex-shrink: 0;">Buscar</button>
+                </div>
+                <small id="fecha-estado" style="display: none; margin-top: 5px;"></small>
+            </div>
+            
+            <div class="form-group">
+                <label for="monto-total">Monto Total de Propinas:</label>
+                <input type="number" id="monto-total" step="0.01" placeholder="0.00">
+            </div>
+            
+            <div class="form-group">
+                <label>Empleados que trabajaron:</label>
+                <div class="empleados-grid" id="empleados-grid">
+                    <% if (typeof empleados !== 'undefined' && empleados && empleados.length > 0) { %>
+                        <% empleados.forEach(empleado => { %>
+                            <div class="empleado-checkbox" onclick="toggleEmpleado(<%= empleado.id %>, this)">
+                                <input type="checkbox" id="emp-<%= empleado.id %>" value="<%= empleado.id %>" onclick="event.stopPropagation();">
+                                <label for="emp-<%= empleado.id %>"><%= empleado.nombre %></label>
+                            </div>
+                        <% }); %>
+                    <% } else { %>
+                        <div style="padding: 20px; text-align: center; color: #666;">
+                            <p>No hay empleados disponibles.</p>
+                            <button class="btn btn-secondary" onclick="crearEmpleadosPrueba()">Crear Empleados de Prueba</button>
+                        </div>
+                    <% } %>
+                </div>
+                <div class="selected-count" id="selected-count">Empleados seleccionados: 0</div>
+            </div>
+            
+            <div class="form-group">
+                <label for="notas-dia">Notas del día (opcional):</label>
+                <textarea id="notas-dia" placeholder="Notas sobre el día, eventos especiales, etc."></textarea>
+            </div>
+            
+            <button class="btn btn-primary" onclick="registrarPropinas()">Registrar Propinas</button>
+        </div>
+        
+        <!-- Sección: Lista de Empleados -->
+        <div class="admin-section">
+            <h2 class="section-title">👥 Gestión de Empleados</h2>
+            <div class="empleados-list">
+                <% empleados.forEach(empleado => { %>
+                    <div class="empleado-item" id="empleado-<%= empleado.id %>">
+                        <div class="empleado-info">
+                            <span class="empleado-nombre" id="nombre-<%= empleado.id %>"><%= empleado.nombre %></span>
+                            <small style="color: #666;">ID: <%= empleado.id %></small>
+                        </div>
+                        <div class="empleado-actions">
+                            <button class="btn-small btn-edit" onclick="editarEmpleado(<%= empleado.id %>, this.getAttribute('data-nombre'))" data-nombre="<%= empleado.nombre %>">✏️ Editar</button>
+                            <button class="btn-small btn-delete" onclick="eliminarEmpleado(<%= empleado.id %>, this.getAttribute('data-nombre'))" data-nombre="<%= empleado.nombre %>">🗑️ Eliminar</button>
+                        </div>
+                    </div>
+                <% }); %>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        let empleadosSeleccionados = [];
+        
+        function toggleEmpleado(id, element) {
+            const checkbox = element.querySelector('input[type="checkbox"]');
+            
+            // Evitar cambios duplicados si se clica directamente en el checkbox
+            if (event && event.target === checkbox) return;
+            
+            checkbox.checked = !checkbox.checked;
+            
+            // Actualizar array de seleccionados
+            if (checkbox.checked) {
+                // Evitar duplicados en el array
+                if (!empleadosSeleccionados.includes(id)) {
+                    empleadosSeleccionados.push(id);
+                }
+                element.classList.add('selected');
+            } else {
+                empleadosSeleccionados = empleadosSeleccionados.filter(empId => empId !== id);
+                element.classList.remove('selected');
+            }
+            
+            updateSelectedCount();
+        }
+        
+        // Añadir handler para cuando el usuario clica directamente en el checkbox
+        document.addEventListener('DOMContentLoaded', function() {
+            document.querySelectorAll('.empleado-checkbox input[type="checkbox"]').forEach(checkbox => {
+                checkbox.addEventListener('change', function() {
+                    const id = parseInt(this.value);
+                    const element = this.closest('.empleado-checkbox');
+                    
+                    if (this.checked) {
+                        if (!empleadosSeleccionados.includes(id)) {
+                            empleadosSeleccionados.push(id);
+                        }
+                        element.classList.add('selected');
+                    } else {
+                        empleadosSeleccionados = empleadosSeleccionados.filter(empId => empId !== id);
+                        element.classList.remove('selected');
+                    }
+                    
+                    updateSelectedCount();
+                });
+            });
+        });
+        
+        function updateSelectedCount() {
+            const countElement = document.getElementById('selected-count');
+            if (countElement) {
+                countElement.textContent = `Empleados seleccionados: ${empleadosSeleccionados.length}`;
+            }
+        }
+        
+        async function agregarEmpleado() {
+            const nombre = document.getElementById('nuevo-empleado').value.trim();
+            
+            if (!nombre) {
+                alert('Por favor ingresa un nombre');
+                return;
+            }
+            
+            try {
+                const response = await fetch('/api/empleados', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ nombre })
+                });
+                
+                if (response.ok) {
+                    alert('Empleado agregado exitosamente');
+                    location.reload();
+                } else {
+                    alert('Error al agregar empleado');
+                }
+            } catch (error) {
+                alert('Error al agregar empleado: ' + error.message);
+            }
+        }
+        
+        async function editarEmpleado(id, nombreActual) {
+            const nuevoNombre = prompt('Nuevo nombre:', nombreActual);
+            if (!nuevoNombre || nuevoNombre.trim() === '') return;
+            
+            try {
+                const response = await fetch(`/api/empleados/${id}`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ nombre: nuevoNombre.trim() })
+                });
+                
+                if (response.ok) {
+                    document.getElementById(`nombre-${id}`).textContent = nuevoNombre.trim();
+                    alert('Empleado actualizado exitosamente');
+                } else {
+                    alert('Error al actualizar empleado');
+                }
+            } catch (error) {
+                alert('Error al actualizar empleado: ' + error.message);
+            }
+        }
+        
+        async function eliminarEmpleado(id, nombre) {
+            if (!confirm(`¿Estás seguro de que quieres eliminar a ${nombre}?`)) return;
+            
+            try {
+                const response = await fetch(`/api/empleados/${id}`, {
+                    method: 'DELETE'
+                });
+                
+                if (response.ok) {
+                    document.getElementById(`empleado-${id}`).remove();
+                    alert('Empleado eliminado exitosamente');
+                } else {
+                    alert('Error al eliminar empleado');
+                }
+            } catch (error) {
+                alert('Error al eliminar empleado: ' + error.message);
+            }
+        }
+        
+        async function registrarPropinas() {
+            const fecha = document.getElementById('fecha-propina').value;
+            const monto = parseFloat(document.getElementById('monto-total').value);
+            const notas = document.getElementById('notas-dia').value;
+            
+            if (!fecha) {
+                alert('Por favor selecciona una fecha');
+                return;
+            }
+            
+            if (!monto || monto <= 0) {
+                alert('Por favor ingresa un monto válido');
+                return;
+            }
+            
+            if (empleadosSeleccionados.length === 0) {
+                alert('Por favor selecciona al menos un empleado');
+                return;
+            }
+            
+            try {
+                const response = await fetch('/api/propinas', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        fecha,
+                        empleados: empleadosSeleccionados,
+                        monto,
+                        notas
+                    })
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    
+                    if (data.updated) {
+                        alert(`¡Las propinas para el día ${fecha} han sido actualizadas exitosamente!\nMonto por empleado: $${(monto / empleadosSeleccionados.length).toFixed(2)}`);
+                    } else {
+                        alert(`¡Propinas registradas exitosamente!\nMonto por empleado: $${(monto / empleadosSeleccionados.length).toFixed(2)}`);
+                    }
+                    
+                    // Limpiar formulario
+                    document.getElementById('monto-total').value = '';
+                    document.getElementById('notas-dia').value = '';
+                    empleadosSeleccionados = [];
+                    
+                    // Desmarcar checkboxes
+                    document.querySelectorAll('.empleado-checkbox').forEach(el => {
+                        el.classList.remove('selected');
+                        el.querySelector('input[type="checkbox"]').checked = false;
+                    });
+                    
+                    updateSelectedCount();
+                } else {
+                    const errorData = await response.json();
+                    alert('Error al registrar propinas: ' + (errorData.error || 'Error desconocido'));
+                }
+            } catch (error) {
+                console.error('Error registrando propinas:', error);
+                alert('Error al registrar propinas: ' + error.message);
+            }
+        }
+        
+        async function buscarPropinasFecha() {
+            const fecha = document.getElementById('fecha-propina').value;
+            const estadoElement = document.getElementById('fecha-estado');
+            
+            if (!fecha) {
+                alert('Por favor selecciona una fecha');
+                return;
+            }
+            
+            try {
+                // Limpiar selección actual
+                document.getElementById('monto-total').value = '';
+                document.getElementById('notas-dia').value = '';
+                empleadosSeleccionados = [];
+                
+                // Desmarcar todos los checkboxes
+                document.querySelectorAll('.empleado-checkbox').forEach(el => {
+                    el.classList.remove('selected');
+                    el.querySelector('input[type="checkbox"]').checked = false;
+                });
+                
+                updateSelectedCount();
+                
+                // Mostrar estado de carga
+                estadoElement.style.display = 'block';
+                estadoElement.textContent = 'Buscando datos...';
+                estadoElement.style.color = '#666';
+                
+                const response = await fetch(`/api/propinas/${fecha}`, {
+                    headers: {
+                        'Accept': 'application/json'
+                    }
+                });
+                
+                if (response.status === 404) {
+                    // No hay propinas para esta fecha
+                    estadoElement.textContent = 'No hay propinas registradas para esta fecha. Puedes registrar nuevas propinas.';
+                    estadoElement.style.color = '#007bff';
+                    return;
+                }
+                
+                if (!response.ok) {
+                    throw new Error('Error al buscar propinas');
+                }
+                
+                const propina = await response.json();
+                
+                if (!propina || typeof propina !== 'object') {
+                    throw new Error('La respuesta del servidor no tiene el formato esperado');
+                }
+                
+                // Cargar los datos en el formulario con validación de datos
+                document.getElementById('monto-total').value = propina.monto_total !== undefined ? propina.monto_total : '';
+                document.getElementById('notas-dia').value = propina.notas !== undefined ? propina.notas : '';
+                
+                // Marcar los empleados que trabajaron ese día (con verificación completa)
+                if (propina.empleados && Array.isArray(propina.empleados)) {
+                    propina.empleados.forEach(empleado => {
+                        if (empleado && typeof empleado === 'object' && empleado.empleado_id) {
+                            const checkbox = document.getElementById(`emp-${empleado.empleado_id}`);
+                            if (checkbox) {
+                                checkbox.checked = true;
+                                empleadosSeleccionados.push(empleado.empleado_id);
+                                checkbox.closest('.empleado-checkbox').classList.add('selected');
+                            }
+                        }
+                    });
+                    
+                    estadoElement.textContent = `Datos cargados. Propinas registradas para ${propina.empleados.length} empleado(s). Puedes modificar y guardar los cambios.`;
+                } else {
+                    estadoElement.textContent = 'Datos cargados pero no hay información de empleados disponible. Puedes seleccionar empleados y guardar.';
+                }
+                estadoElement.style.color = '#28a745';
+                
+            } catch (error) {
+                console.error('Error buscando propinas:', error);
+                estadoElement.textContent = 'Error al buscar propinas: ' + error.message;
+                estadoElement.style.color = '#dc3545';
+                
+                // Limpiar el formulario en caso de error
+                document.getElementById('monto-total').value = '';
+                document.getElementById('notas-dia').value = '';
+            }
+        }
+         async function crearEmpleadosPrueba() {
+            try {
+                const response = await fetch('/create-sample-employees', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    }
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    alert(data.message);
+                    location.reload();
+                } else {
+                    const errorData = await response.json();
+                    alert('Error al crear empleados de prueba: ' + (errorData.error || 'Error desconocido'));
+                }
+            } catch (error) {
+                console.error('Error creando empleados de prueba:', error);
+                alert('Error al crear empleados de prueba: ' + error.message);
+            }
+        }
+    </script>
+    
+    <% if (typeof fechaEditar !== 'undefined' && fechaEditar) { %>
+    <script>
+        // Si hay una fecha para editar, cargar los datos automáticamente al cargar la página
+        window.addEventListener('DOMContentLoaded', function() {
+            document.getElementById('fecha-propina').value = '<%= fechaEditar %>';
+            buscarPropinasFecha();
+        });
+    </script>
+    <% } %>
+    
+</body>
+</html>

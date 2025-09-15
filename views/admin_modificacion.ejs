@@ -1,0 +1,933 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Modificación - Sistema de Propinas</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Arial', sans-serif;
+            background: #f8f9fa;
+            min-height: 100vh;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%);
+            color: white;
+            padding: 20px 0;
+            text-align: center;
+        }
+        
+        .header h1 {
+            font-size: 2rem;
+            margin-bottom: 10px;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        .nav-buttons {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+        
+        .nav-btn {
+            padding: 10px 20px;
+            background: #fff;
+            border: 2px solid #e74c3c;
+            color: #e74c3c;
+            border-radius: 8px;
+            text-decoration: none;
+            font-weight: 500;
+            transition: all 0.3s;
+        }
+        
+        .nav-btn:hover {
+            background: #e74c3c;
+            color: white;
+        }
+        
+        .admin-note {
+            background: #e3f2fd;
+            border-left: 4px solid #2196f3;
+            padding: 15px;
+            margin-bottom: 20px;
+            border-radius: 4px;
+            font-size: 0.9rem;
+            color: #0d47a1;
+        }
+        
+        .historico-table {
+            width: 100%;
+            background: white;
+            border-radius: 10px;
+            overflow: hidden;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        
+        .historico-table table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        
+        .historico-table th,
+        .historico-table td {
+            padding: 15px;
+            text-align: left;
+            border-bottom: 1px solid #eee;
+        }
+        
+        .historico-table th {
+            background: #f8f9fa;
+            font-weight: 600;
+            color: #555;
+        }
+        
+        .historico-table tr:hover {
+            background: #f8f9fa;
+        }
+        
+        .fecha-cell {
+            font-weight: 600;
+            color: #333;
+        }
+        
+        .dia-semana {
+            font-size: 0.8rem;
+            color: #666;
+            margin-top: 3px;
+        }
+        
+        .monto {
+            font-weight: 600;
+            color: #28a745;
+        }
+        
+        .empleados-count {
+            background: #e8f5e8;
+            color: #28a745;
+            padding: 3px 8px;
+            border-radius: 15px;
+            font-size: 0.8rem;
+        }
+        
+        .monto-individual {
+            font-weight: 600;
+            color: #6f42c1;
+        }
+        
+        .notas-cell {
+            max-width: 250px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        
+        .filters {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        
+        .filters-title {
+            font-size: 1.2rem;
+            color: #333;
+            margin-bottom: 15px;
+            border-bottom: 2px solid #e74c3c;
+            padding-bottom: 10px;
+        }
+        
+        .filters-form {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 15px;
+        }
+        
+        .form-group {
+            flex: 1;
+            min-width: 200px;
+        }
+        
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            color: #555;
+            font-weight: 600;
+        }
+        
+        .form-group input,
+        .form-group select {
+            width: 100%;
+            padding: 10px;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            font-size: 14px;
+        }
+        
+        .form-group input:focus,
+        .form-group select:focus {
+            outline: none;
+            border-color: #e74c3c;
+        }
+        
+        .filter-buttons {
+            display: flex;
+            gap: 10px;
+            align-items: flex-end;
+        }
+        
+        .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        
+        .btn-primary {
+            background: #e74c3c;
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            background: #c0392b;
+        }
+        
+        .btn-secondary {
+            background: #6c757d;
+            color: white;
+        }
+        
+        .btn-secondary:hover {
+            background: #5a6268;
+        }
+        
+        .btn-success {
+            background: #28a745;
+            color: white;
+        }
+        
+        .btn-success:hover {
+            background: #218838;
+        }
+        
+        .btn-danger {
+            background: #dc3545;
+            color: white;
+        }
+        
+        .btn-danger:hover {
+            background: #c82333;
+        }
+        
+        .btn-warning {
+            background: #ffc107;
+            color: #212529;
+        }
+        
+        .btn-warning:hover {
+            background: #e0a800;
+        }
+        
+        .action-buttons {
+            display: flex;
+            gap: 5px;
+        }
+        
+        .btn-edit, .btn-delete {
+            padding: 5px 10px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 12px;
+        }
+        
+        .btn-edit {
+            background: #007bff;
+            color: white;
+        }
+        
+        .btn-delete {
+            background: #dc3545;
+            color: white;
+        }
+        
+        .no-data {
+            padding: 50px;
+            text-align: center;
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            color: #666;
+        }
+        
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            overflow: auto;
+            background-color: rgba(0,0,0,0.7);
+        }
+        
+        .modal-content {
+            background-color: #fefefe;
+            margin: 5% auto;
+            padding: 0;
+            border-radius: 10px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+            width: 80%;
+            max-width: 600px;
+            animation: modalFadeIn 0.3s;
+        }
+        
+        @keyframes modalFadeIn {
+            from {opacity: 0; transform: translateY(-30px);}
+            to {opacity: 1; transform: translateY(0);}
+        }
+        
+        .modal-header {
+            padding: 20px;
+            background: #e74c3c;
+            color: white;
+            border-top-left-radius: 10px;
+            border-top-right-radius: 10px;
+            position: relative;
+        }
+        
+        .modal-header h2 {
+            margin: 0;
+            font-size: 1.5rem;
+        }
+        
+        .close {
+            position: absolute;
+            right: 20px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: white;
+            font-size: 24px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+        
+        .close:hover {
+            color: #eee;
+        }
+        
+        .modal-body {
+            padding: 20px;
+        }
+        
+        .modal-info {
+            margin-bottom: 20px;
+            padding-bottom: 20px;
+            border-bottom: 1px solid #eee;
+        }
+        
+        .modal-info p {
+            margin: 10px 0;
+            font-size: 1rem;
+        }
+        
+        .empleado-detalle {
+            display: flex;
+            justify-content: space-between;
+            padding: 10px;
+            background: #f8f9fa;
+            margin-bottom: 8px;
+            border-radius: 5px;
+            font-size: 0.9rem;
+        }
+        
+        .empleado-nombre {
+            font-weight: 600;
+            color: #333;
+        }
+        
+        .empleado-monto {
+            font-weight: 600;
+            color: #28a745;
+        }
+        
+        .edit-form label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 600;
+            color: #333;
+        }
+        
+        .edit-form input, .edit-form textarea {
+            width: 100%;
+            padding: 10px;
+            margin-bottom: 15px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+        
+        .edit-form-title {
+            font-size: 1.2rem;
+            margin: 15px 0;
+            color: #e74c3c;
+            border-bottom: 1px solid #eee;
+            padding-bottom: 10px;
+        }
+        
+        .modal-actions {
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+            padding-top: 15px;
+            border-top: 1px solid #eee;
+            margin-top: 20px;
+        }
+        
+        .empleados-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+        
+        .empleado-checkbox {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px;
+            background: #f8f9fa;
+            border-radius: 8px;
+            border: 2px solid transparent;
+            transition: all 0.3s;
+        }
+        
+        .empleado-checkbox.selected {
+            background: #e3f2fd;
+            border-color: #2196f3;
+        }
+        
+        @media (max-width: 768px) {
+            .container {
+                padding: 10px;
+            }
+            
+            .filters-form {
+                flex-direction: column;
+            }
+            
+            .modal-content {
+                width: 95%;
+                margin: 10% auto;
+            }
+            
+            .historico-table {
+                overflow-x: auto;
+            }
+            
+            .historico-table table {
+                min-width: 800px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>✏️ Panel de Modificación</h1>
+        <p><%= descripcion %></p>
+    </div>
+    
+    <div class="container">
+        <% if (typeof error !== 'undefined' && error) { %>
+            <div class="error-message">
+                <strong>Error:</strong> <%= error %>
+            </div>
+        <% } %>
+        
+        <div class="admin-note">
+            <strong>⚠️ Modo Administrador:</strong> En esta vista puedes modificar o eliminar registros de propinas. Los cambios afectarán a todos los empleados.
+        </div>
+        
+        <div class="nav-buttons">
+            <a href="/admin" class="nav-btn">⚙️ Panel Principal</a>
+            <a href="/historico" class="nav-btn">📊 Ver Histórico</a>
+            <a href="/empleados" class="nav-btn">👥 Vista Empleados</a>
+            <a href="/logout" class="nav-btn">🚪 Cerrar Sesión</a>
+        </div>
+        
+        <div class="filters">
+            <h3 class="filters-title">🔍 Filtros</h3>
+            <div class="filters-form">
+                <div class="form-group">
+                    <label for="fecha-desde">Desde:</label>
+                    <input type="date" id="fecha-desde">
+                </div>
+                <div class="form-group">
+                    <label for="fecha-hasta">Hasta:</label>
+                    <input type="date" id="fecha-hasta" value="<%= new Date().toISOString().split('T')[0] %>">
+                </div>
+                <div class="filter-buttons">
+                    <button class="btn btn-primary" onclick="aplicarFiltros()">Filtrar</button>
+                    <button class="btn btn-secondary" onclick="limpiarFiltros()">Limpiar</button>
+                </div>
+            </div>
+        </div>
+        
+        <% if (historico && historico.length > 0) { %>
+            <!-- Tabla histórico -->
+            <div class="historico-table">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Fecha</th>
+                            <th>Monto Total</th>
+                            <th>Empleados</th>
+                            <th>Por Empleado</th>
+                            <th>Notas</th>
+                            <th>Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <% 
+                        const meses = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
+                        const diasSemana = ['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado'];
+                        
+                        historico.forEach(dia => {
+                            const [anio, mes, diaNum] = dia.fecha.split('-');
+                            const fechaObj = new Date(`${dia.fecha}T00:00:00`);
+                            const fechaLocal = `${parseInt(diaNum)} de ${meses[parseInt(mes) - 1]} de ${anio}`;
+                            const diaSemana = diasSemana[fechaObj.getDay()];
+                        %>
+                            <tr>
+                                <td class="fecha-cell">
+                                    <%= fechaLocal %>
+                                    <div class="dia-semana">
+                                        <%= diaSemana.charAt(0).toUpperCase() + diaSemana.slice(1) %>
+                                    </div>
+                                </td>
+                                <td>
+                                    <span class="monto">$<%= dia.monto_total.toFixed(2) %></span>
+                                </td>
+                                <td>
+                                    <span class="empleados-count">
+                                        <%= dia.total_empleados %> empleado<%= dia.total_empleados > 1 ? 's' : '' %>
+                                    </span>
+                                </td>
+                                <td>
+                                    <span class="monto-individual">$<%= dia.monto_por_empleado.toFixed(2) %></span>
+                                </td>
+                                <td class="notas-cell">
+                                    <% if (dia.notas) { %>
+                                        <span title="<%= dia.notas %>"><%= dia.notas %></span>
+                                    <% } else { %>
+                                        <span style="color: #999;">-</span>
+                                    <% } %>
+                                </td>
+                                <td>
+                                    <div class="action-buttons">
+                                        <button onclick="editarPropina('<%= dia.fecha %>')" class="btn-edit">
+                                            ✏️ Editar
+                                        </button>
+                                        <button onclick="confirmarEliminar('<%= dia.fecha %>')" class="btn-delete">
+                                            🗑️ Eliminar
+                                        </button>
+                                    </div>
+                                </td>
+                            </tr>
+                        <% }); %>
+                    </tbody>
+
+                </table>
+            </div>
+        <% } else { %>
+            <div class="no-data">
+                <p>No hay datos históricos disponibles</p>
+            </div>
+        <% } %>
+    </div>
+    
+    <!-- Modal para detalles y edición -->
+    <div id="editarModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <span class="close" onclick="cerrarModal()">&times;</span>
+                <h2 id="modalTitle">Editar Propinas</h2>
+            </div>
+            <div class="modal-body" id="modalBody">
+                <!-- Contenido dinámico -->
+            </div>
+        </div>
+    </div>
+    
+    <!-- Modal de confirmación para eliminar -->
+    <div id="confirmarModal" class="modal">
+        <div class="modal-content" style="max-width: 400px;">
+            <div class="modal-header">
+                <span class="close" onclick="cerrarConfirmacionModal()">&times;</span>
+                <h2>Confirmar Eliminación</h2>
+            </div>
+            <div class="modal-body">
+                <p>¿Estás seguro de que deseas eliminar las propinas de esta fecha? Esta acción no se puede deshacer.</p>
+                <div class="modal-actions">
+                    <button class="btn btn-secondary" onclick="cerrarConfirmacionModal()">Cancelar</button>
+                    <button class="btn btn-danger" id="btn-confirmar-eliminar">Eliminar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        let empleadosSeleccionados = [];
+        let todoEmpleados = [];
+        
+        // Función para formatear fechas sin desfase por zona horaria
+        function formatearFecha(fechaString, opcion) {
+            // Extraer año, mes y día del string (formato YYYY-MM-DD)
+            const [year, month, day] = fechaString.split('-').map(num => parseInt(num, 10));
+            
+            // Crear un objeto para mapear los días de la semana
+            const diasSemana = ['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado'];
+            
+            // Crear un objeto para los nombres de los meses
+            const meses = [
+                'enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio',
+                'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'
+            ];
+            
+            // Para obtener el día de la semana correctamente, creamos una fecha con tiempo al mediodía
+            // para evitar cualquier problema con zonas horarias
+            const fecha = new Date(year, month - 1, day, 12, 0, 0);
+            
+            if (opcion === 'diaSemana') {
+                return diasSemana[fecha.getDay()];
+            } else if (opcion === 'completa') {
+                return `${day} de ${meses[month - 1]} de ${year}`;
+            } else {
+                // Devolver la fecha original sin modificar
+                return fechaString;
+            }
+        }
+        
+        // Función para filtrar los registros por fecha
+        function aplicarFiltros() {
+            const fechaDesde = document.getElementById('fecha-desde').value;
+            const fechaHasta = document.getElementById('fecha-hasta').value;
+            
+            if (!fechaHasta) {
+                alert('Por favor selecciona una fecha final');
+                return;
+            }
+            
+            let url = '/admin/modificacion?';
+            if (fechaDesde) url += `desde=${fechaDesde}&`;
+            if (fechaHasta) url += `hasta=${fechaHasta}`;
+            
+            window.location.href = url;
+        }
+        
+        function limpiarFiltros() {
+            document.getElementById('fecha-desde').value = '';
+            document.getElementById('fecha-hasta').value = new Date().toISOString().split('T')[0];
+            window.location.href = '/admin/modificacion';
+        }
+        
+        // Función para abrir el modal de edición
+        async function editarPropina(fecha) {
+            try {
+                console.log('Editando propina para fecha:', fecha);
+                
+                // Primero obtener la propina para esta fecha
+                const response = await fetch(`/api/propinas/${fecha}`);
+                
+                if (!response.ok) {
+                    if (response.status === 404) {
+                        alert('No se encontraron datos para esta fecha');
+                    } else {
+                        const errorText = await response.text();
+                        console.error('Error respuesta API:', errorText);
+                        alert('Error al cargar los detalles: ' + errorText);
+                    }
+                    return;
+                }
+                
+                const propina = await response.json();
+                
+                if (!propina || !propina.monto_total) {
+                    alert('Datos incompletos para esta fecha');
+                    return;
+                }
+                
+                // Obtener todos los empleados
+                const responseEmpleados = await fetch('/api/empleados');
+                if (!responseEmpleados.ok) {
+                    const errorText = await responseEmpleados.text();
+                    console.error('Error obteniendo empleados:', errorText);
+                    alert('Error al cargar los empleados: ' + errorText);
+                    return;
+                }
+                
+                const todosEmpleados = await responseEmpleados.json();
+                
+                // Crear el formato de fecha para el título
+                const fechaFormateada = new Date(fecha).toLocaleDateString('es-ES', { 
+                    weekday: 'long',
+                    day: 'numeric', 
+                    month: 'long', 
+                    year: 'numeric' 
+                });
+                
+                document.getElementById('modalTitle').textContent = `Editar Propinas del ${fechaFormateada}`;
+                
+                // Preparar formulario de edición
+                let formHTML = `
+                    <form id="editar-propina-form" onsubmit="guardarCambios(event, '${fecha}')">
+                        <div class="edit-form">
+                            <div class="form-group">
+                                <label for="edit-monto">Monto Total:</label>
+                                <input type="number" id="edit-monto" value="${propina.monto_total}" step="0.01" required>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label for="edit-notas">Notas del día (opcional):</label>
+                                <textarea id="edit-notas" rows="3">${propina.notas || ''}</textarea>
+                            </div>
+                            
+                            <div class="edit-form-title">Empleados que trabajaron:</div>
+                            <div class="empleados-grid" id="empleados-grid">`;
+                
+                // Resetear empleados seleccionados
+                empleadosSeleccionados = [];
+                
+                // Guardar IDs de empleados seleccionados
+                if (propina.empleados && Array.isArray(propina.empleados)) {
+                    propina.empleados.forEach(emp => {
+                        if (emp && emp.empleado_id) {
+                            empleadosSeleccionados.push(emp.empleado_id);
+                        }
+                    });
+                }
+                
+                // Generar checkboxes para todos los empleados
+                todosEmpleados.forEach(empleado => {
+                    const estaSeleccionado = empleadosSeleccionados.includes(empleado.id);
+                    formHTML += `
+                        <div class="empleado-checkbox ${estaSeleccionado ? 'selected' : ''}" onclick="toggleEmpleado(${empleado.id}, this)">
+                            <input type="checkbox" id="emp-edit-${empleado.id}" value="${empleado.id}" ${estaSeleccionado ? 'checked' : ''} onclick="event.stopPropagation();">
+                            <label for="emp-edit-${empleado.id}">${empleado.nombre}</label>
+                        </div>`;
+                });
+                
+                formHTML += `
+                            </div>
+                            <div style="margin-top: 10px; font-weight: 600; color: #e74c3c;">
+                                Empleados seleccionados: <span id="selected-count">${empleadosSeleccionados.length}</span>
+                            </div>
+                        </div>
+                        
+                        <div class="modal-actions">
+                            <button type="button" class="btn btn-danger" onclick="confirmarEliminar('${fecha}')">Eliminar</button>
+                            <button type="button" class="btn btn-secondary" onclick="cerrarModal()">Cancelar</button>
+                            <button type="submit" class="btn btn-primary">Guardar Cambios</button>
+                        </div>
+                    </form>`;
+                
+                document.getElementById('modalBody').innerHTML = formHTML;
+                document.getElementById('editarModal').style.display = 'block';
+                
+                // Configurar event listeners para checkboxes
+                setTimeout(() => {
+                    document.querySelectorAll('.empleado-checkbox input[type="checkbox"]').forEach(checkbox => {
+                        checkbox.addEventListener('change', function() {
+                            const id = parseInt(this.value);
+                            const element = this.closest('.empleado-checkbox');
+                            
+                            if (this.checked) {
+                                if (!empleadosSeleccionados.includes(id)) {
+                                    empleadosSeleccionados.push(id);
+                                }
+                                element.classList.add('selected');
+                            } else {
+                                empleadosSeleccionados = empleadosSeleccionados.filter(empId => empId !== id);
+                                element.classList.remove('selected');
+                            }
+                            
+                            updateSelectedCount();
+                        });
+                    });
+                }, 100);
+                
+            } catch (error) {
+                console.error('Error al cargar datos para edición:', error);
+                alert('Error al cargar los datos: ' + (error.message || 'Error desconocido'));
+            }
+        }
+        
+        // Función para toggle empleados en el modal de edición
+        function toggleEmpleado(id, element) {
+            const checkbox = element.querySelector('input[type="checkbox"]');
+            
+            // Evitar cambios duplicados si se clica directamente en el checkbox
+            if (event && event.target === checkbox) return;
+            
+            checkbox.checked = !checkbox.checked;
+            
+            // Actualizar array de seleccionados
+            if (checkbox.checked) {
+                // Evitar duplicados en el array
+                if (!empleadosSeleccionados.includes(id)) {
+                    empleadosSeleccionados.push(id);
+                }
+                element.classList.add('selected');
+            } else {
+                empleadosSeleccionados = empleadosSeleccionados.filter(empId => empId !== id);
+                element.classList.remove('selected');
+            }
+            
+            updateSelectedCount();
+        }
+        
+        function updateSelectedCount() {
+            const countElement = document.getElementById('selected-count');
+            if (countElement) {
+                countElement.textContent = empleadosSeleccionados.length;
+            }
+        }
+        
+        // Función para guardar cambios en el formulario
+        async function guardarCambios(event, fecha) {
+            event.preventDefault();
+            
+            const monto = parseFloat(document.getElementById('edit-monto').value);
+            const notas = document.getElementById('edit-notas').value;
+            
+            if (!monto || monto <= 0) {
+                alert('Por favor ingresa un monto válido');
+                return;
+            }
+            
+            if (empleadosSeleccionados.length === 0) {
+                alert('Por favor selecciona al menos un empleado');
+                return;
+            }
+            
+            try {
+                console.log('Enviando datos:', {monto, notas, empleados: empleadosSeleccionados});
+                
+                const response = await fetch(`/api/propinas/${fecha}`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        monto,
+                        notas,
+                        empleados: empleadosSeleccionados
+                    })
+                });
+                
+                if (!response.ok) {
+                    let errorMessage = 'Error al actualizar propinas';
+                    try {
+                        const errorData = await response.json();
+                        errorMessage += ': ' + (errorData.error || 'Error desconocido');
+                    } catch (jsonError) {
+                        const errorText = await response.text();
+                        errorMessage += ': ' + (errorText || response.statusText);
+                    }
+                    alert(errorMessage);
+                    return;
+                }
+                
+                const data = await response.json();
+                alert(`Propinas actualizadas exitosamente para ${fecha}`);
+                cerrarModal();
+                location.reload();
+            } catch (error) {
+                console.error('Error actualizando propinas:', error);
+                alert('Error al actualizar propinas: ' + error.message);
+            }
+        }
+        
+        // Funciones para los modales
+        function cerrarModal() {
+            document.getElementById('editarModal').style.display = 'none';
+        }
+        
+        function confirmarEliminar(fecha) {
+            cerrarModal();
+            
+            const btnConfirmar = document.getElementById('btn-confirmar-eliminar');
+            btnConfirmar.onclick = function() {
+                eliminarPropina(fecha);
+            };
+            
+            document.getElementById('confirmarModal').style.display = 'block';
+        }
+        
+        function cerrarConfirmacionModal() {
+            document.getElementById('confirmarModal').style.display = 'none';
+        }
+        
+        async function eliminarPropina(fecha) {
+            try {
+                const response = await fetch(`/api/propinas/${fecha}`, {
+                    method: 'DELETE'
+                });
+                
+                if (response.ok) {
+                    alert(`Propinas eliminadas exitosamente para ${fecha}`);
+                    cerrarConfirmacionModal();
+                    location.reload();
+                } else {
+                    const errorData = await response.json();
+                    alert('Error al eliminar propinas: ' + (errorData.error || 'Error desconocido'));
+                }
+            } catch (error) {
+                console.error('Error eliminando propinas:', error);
+                alert('Error al eliminar propinas: ' + error.message);
+            }
+        }
+        
+        // Cerrar modales al hacer clic fuera de ellos
+        window.onclick = function(event) {
+            const editarModal = document.getElementById('editarModal');
+            const confirmarModal = document.getElementById('confirmarModal');
+            
+            if (event.target == editarModal) {
+                editarModal.style.display = 'none';
+            }
+            
+            if (event.target == confirmarModal) {
+                confirmarModal.style.display = 'none';
+            }
+        }
+        
+        // Configurar fechas iniciales si vienen en la URL
+        document.addEventListener('DOMContentLoaded', function() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const desde = urlParams.get('desde');
+            const hasta = urlParams.get('hasta');
+            
+            if (desde) document.getElementById('fecha-desde').value = desde;
+            if (hasta) document.getElementById('fecha-hasta').value = hasta;
+        });
+    </script>
+</body>
+</html>
