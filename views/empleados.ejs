@@ -231,6 +231,26 @@
             outline: none;
             border-color: #20c997;
         }
+
+        .totales-semana-card {
+            background: white;
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 24px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+
+        .totales-semana-title {
+            font-size: 1.25rem;
+            color: #333;
+            margin-bottom: 16px;
+        }
+
+        .detalle-dias-title {
+            font-size: 1.1rem;
+            color: #555;
+            margin-bottom: 12px;
+        }
         
         @media (max-width: 768px) {
             .container {
@@ -287,7 +307,7 @@
             <label for="empleadoSelect">👤 Selecciona tu nombre:</label>
             <select id="empleadoSelect" onchange="cambiarEmpleado()">
                 <option value="">Ver todos los empleados</option>
-                <% empleados.forEach(empleado => { %>
+                <% (typeof empleados !== 'undefined' ? empleados : []).forEach(empleado => { %>
                     <option value="<%= empleado.id %>" <%= empleadoSeleccionado == empleado.id ? 'selected' : '' %>>
                         <%= empleado.nombre %>
                     </option>
@@ -296,16 +316,45 @@
         </div>
         
         <div class="week-info">
-            <!-- Actualizar la visualización de la semana actual -->
             <div class="week-navigation">
                 <button class="week-nav-btn" onclick="cambiarSemana(-1)">← Semana Anterior</button>
                 <div class="week-title">
-                    Semana del <%= formatearFecha(semana.toISOString().split('T')[0], 'completa') %>
+                    Semana del <%= formatearFecha(typeof semanaStr !== 'undefined' ? semanaStr : '', 'completa') %>
                 </div>
                 <button class="week-nav-btn" onclick="cambiarSemana(1)">Semana Siguiente →</button>
             </div>
         </div>
-        
+
+        <!-- Lista de propina total por empleado de la semana -->
+        <div class="totales-semana-card">
+            <h2 class="totales-semana-title">💰 Propina total por empleado esta semana</h2>
+            <div class="propinas-table">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Empleado</th>
+                            <th>Total de la semana</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <% if (typeof totalesEmpleados !== 'undefined' && totalesEmpleados.length > 0) { %>
+                            <% totalesEmpleados.forEach(emp => { %>
+                                <tr>
+                                    <td><strong><%= emp.nombre %></strong></td>
+                                    <td class="monto">$<%= Number(emp.total_semana).toFixed(2) %></td>
+                                </tr>
+                            <% }); %>
+                        <% } else { %>
+                            <tr>
+                                <td colspan="2" style="color: #999; text-align: center; padding: 20px;">No hay propinas registradas esta semana.</td>
+                            </tr>
+                        <% } %>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <h3 class="detalle-dias-title">📅 Detalle por día</h3>
         <div class="propinas-table">
             <table>
                 <thead>
@@ -323,9 +372,9 @@
                     // Inicializar total semanal a 0
                     let totalSemana = 0;
                     
-                    // Generar fechas de la semana de forma segura sin usar objetos Date para cálculos
                     let fechasSemana = [];
-                    const [year, month, day] = semana.toISOString().split('T')[0].split('-').map(num => parseInt(num, 10));
+                    const semanaStrSafe = (typeof semanaStr !== 'undefined' && semanaStr) ? semanaStr : (semana && typeof semana.toISOString === 'function' ? semana.toISOString().split('T')[0] : '');
+                    const [year, month, day] = (semanaStrSafe || '2000-01-01').split('-').map(num => parseInt(num, 10));
                     
                     for (let i = 0; i < 7; i++) {
                         // Crear fecha base con hora 12:00 para evitar problemas de timezone
@@ -383,34 +432,27 @@
                                 <% } %>
                             </td>
                             <td>
-                                <% if (propinaDia) { %>
-                                    <span class="monto">$<%= propinaDia.monto_total.toFixed(2) %></span>
+                                <% if (propinaDia && propinaDia.monto_total != null) { %>
+                                    <span class="monto">$<%= Number(propinaDia.monto_total).toFixed(2) %></span>
                                 <% } else { %>
                                     <span style="color: #999;">$0.00</span>
                                 <% } %>
                             </td>
                             <td>
-                                <% if (empleadoSeleccionado) { %>
-                                    <% if (propinaDia && propinaDia.monto_individual) { %>
-                                        <span class="monto">$<%= propinaDia.monto_individual.toFixed(2) %></span>
-                                    <% } else { %>
-                                        <span style="color: #999;">$0.00</span>
-                                    <% } %>
+                                <% 
+                                const miPropina = (propinaDia && empleadoSeleccionado) ? (propinaDia.monto_individual != null ? propinaDia.monto_individual : 0) : (propinaDia && propinaDia.monto_por_empleado != null ? propinaDia.monto_por_empleado : 0);
+                                %>
+                                <% if (miPropina > 0) { %>
+                                    <span class="monto">$<%= Number(miPropina).toFixed(2) %></span>
                                 <% } else { %>
-                                    <% if (propinaDia) { %>
-                                        <span class="monto">$<%= propinaDia.monto_por_empleado.toFixed(2) %></span>
-                                    <% } else { %>
-                                        <span style="color: #999;">$0.00</span>
-                                    <% } %>
+                                    <span style="color: #999;">$0.00</span>
                                 <% } %>
                             </td>
                             <td>
-                                <% if (propinaDia) { %>
-                                    <% if (empleadoSeleccionado) { %>
-                                        <%= propinaDia.total_empleados_dia %> empleado<%= propinaDia.total_empleados_dia > 1 ? 's' : '' %>
-                                    <% } else { %>
-                                        <%= propinaDia.total_empleados %> empleado<%= propinaDia.total_empleados > 1 ? 's' : '' %>
-                                    <% } %>
+                                <% if (propinaDia) { 
+                                    const numEmp = empleadoSeleccionado ? (propinaDia.total_empleados_dia != null ? propinaDia.total_empleados_dia : 0) : (propinaDia.total_empleados != null ? propinaDia.total_empleados : 0);
+                                %>
+                                    <%= numEmp %> empleado<%= numEmp !== 1 ? 's' : '' %>
                                 <% } else { %>
                                     <span style="color: #999;">-</span>
                                 <% } %>
@@ -422,38 +464,30 @@
         </div>
         
         <div class="total-semana">
-            <h3>📊 <% if (empleadoSeleccionado) { %>Tu Total<% } else { %>Promedio por Empleado<% } %> de la Semana</h3>
-            <div class="amount">$<%= totalSemana.toFixed(2) %></div>
+            <h3>📊 <% if (empleadoSeleccionado) { %>Tu total de la semana<% } else { %>Total repartido esta semana<% } %></h3>
+            <div class="amount">$<%= (empleadoSeleccionado ? (typeof totalSemana !== 'undefined' && !isNaN(totalSemana) ? totalSemana : 0) : (typeof totalRepartidoSemana !== 'undefined' && !isNaN(totalRepartidoSemana) ? totalRepartidoSemana : 0)).toFixed(2) %></div>
         </div>
     </div>
     
     <script>
         function cambiarSemana(direccion) {
-            // Obtener la fecha como string
-            const fechaStr = '<%= semana.toISOString().split("T")[0] %>';
-            const [year, month, day] = fechaStr.split('-').map(num => parseInt(num, 10));
-            
-            // Crear una fecha a mediodía para evitar problemas de timezone
-            const fecha = new Date(year, month - 1, parseInt(day) + (direccion * 7), 12, 0, 0);
-            
-            const fechaFormateada = fecha.toISOString().split('T')[0];
-            const empleadoParam = '<%= empleadoSeleccionado || "" %>';
-            
-            let url = '/empleados?semana=' + fechaFormateada;
-            if (empleadoParam) {
-                url += '&empleado=' + empleadoParam;
-            }
+            const fechaStr = '<%= typeof semanaStr !== "undefined" ? semanaStr : "" %>';
+            if (!fechaStr) { window.location.href = '/empleados'; return; }
+            const parts = fechaStr.split('-').map(num => parseInt(num, 10));
+            const fecha = new Date(parts[0], parts[1] - 1, parts[2] + (direccion * 7), 12, 0, 0);
+            const y = fecha.getFullYear(), m = String(fecha.getMonth() + 1).padStart(2, '0'), d = String(fecha.getDate()).padStart(2, '0');
+            const fechaFormateada = y + '-' + m + '-' + d;
+            let url = '/empleados/' + fechaFormateada;
+            const empParam = '<%= empleadoSeleccionado || "" %>';
+            if (empParam) url += '?empleado=' + empParam;
             window.location.href = url;
         }
-        
         function cambiarEmpleado() {
             const select = document.getElementById('empleadoSelect');
-            const empleadoId = select.value;
-            const fechaParam = '<%= semana.toISOString().split("T")[0] %>';
-            let url = '/empleados?semana=' + fechaParam;
-            if (empleadoId) {
-                url += '&empleado=' + empleadoId;
-            }
+            const empleadoId = select ? select.value : '';
+            const fechaParam = '<%= typeof semanaStr !== "undefined" ? semanaStr : "" %>';
+            const base = fechaParam ? '/empleados/' + fechaParam : '/empleados';
+            const url = empleadoId ? base + '?empleado=' + empleadoId : base;
             window.location.href = url;
         }
     </script>

@@ -193,62 +193,6 @@
             background: #5a6268;
         }
         
-        .empleados-list {
-            margin-top: 20px;
-        }
-        
-        .empleado-item {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 15px;
-            background: #f8f9fa;
-            border-radius: 8px;
-            margin-bottom: 10px;
-        }
-        
-        .empleado-info {
-            display: flex;
-            flex-direction: column;
-        }
-        
-        .empleado-nombre {
-            font-weight: 600;
-            margin-bottom: 4px;
-        }
-        
-        .empleado-actions {
-            display: flex;
-            gap: 8px;
-        }
-        
-        .btn-small {
-            padding: 6px 12px;
-            border: none;
-            border-radius: 4px;
-            font-size: 12px;
-            cursor: pointer;
-            transition: all 0.3s;
-        }
-        
-        .btn-edit {
-            background: #007bff;
-            color: white;
-        }
-        
-        .btn-edit:hover {
-            background: #0056b3;
-        }
-        
-        .btn-delete {
-            background: #dc3545;
-            color: white;
-        }
-        
-        .btn-delete:hover {
-            background: #c82333;
-        }
-        
         .success-message, .error-message {
             padding: 15px;
             border-radius: 8px;
@@ -311,18 +255,10 @@
             <a href="/" class="nav-btn">← Volver al Inicio</a>
             <a href="/empleados" class="nav-btn">👥 Vista Empleados</a>
             <a href="/historico" class="nav-btn">📊 Histórico</a>
+            <a href="/admin/empleados" class="nav-btn">👤 Gestión de Empleados</a>
+            <a href="/admin/horario" class="nav-btn">📅 Gestor de la semana</a>
             <a href="/admin/modificacion" class="nav-btn">✏️ Modificar Propinas</a>
             <a href="/logout" class="nav-btn logout">🚪 Cerrar Sesión</a>
-        </div>
-        
-        <!-- Sección: Agregar Empleado -->
-        <div class="admin-section">
-            <h2 class="section-title">👤 Agregar Nuevo Empleado</h2>
-            <div class="form-group">
-                <label for="nuevo-empleado">Nombre del empleado:</label>
-                <input type="text" id="nuevo-empleado" placeholder="Ej: María González">
-            </div>
-            <button class="btn btn-secondary" onclick="agregarEmpleado()">Agregar Empleado</button>
         </div>
         
         <!-- Sección: Registrar Propinas -->
@@ -331,9 +267,10 @@
             
             <div class="form-group">
                 <label for="fecha-propina">Fecha:</label>
-                <div style="display: flex; gap: 10px; align-items: center;">
-                    <input type="date" id="fecha-propina" value="<%= new Date().toISOString().split('T')[0] %>" style="flex: 1;">
+                <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+                    <input type="date" id="fecha-propina" value="<%= typeof hoyStr !== 'undefined' ? hoyStr : '' %>" style="flex: 1; min-width: 140px;">
                     <button class="btn btn-secondary" onclick="buscarPropinasFecha()" style="flex-shrink: 0;">Buscar</button>
+                    <button type="button" class="btn btn-secondary" onclick="aplicarHorarioRegular()" style="flex-shrink: 0;">📅 Aplicar horario regular</button>
                 </div>
                 <small id="fecha-estado" style="display: none; margin-top: 5px;"></small>
             </div>
@@ -369,25 +306,6 @@
             </div>
             
             <button class="btn btn-primary" onclick="registrarPropinas()">Registrar Propinas</button>
-        </div>
-        
-        <!-- Sección: Lista de Empleados -->
-        <div class="admin-section">
-            <h2 class="section-title">👥 Gestión de Empleados</h2>
-            <div class="empleados-list">
-                <% empleados.forEach(empleado => { %>
-                    <div class="empleado-item" id="empleado-<%= empleado.id %>">
-                        <div class="empleado-info">
-                            <span class="empleado-nombre" id="nombre-<%= empleado.id %>"><%= empleado.nombre %></span>
-                            <small style="color: #666;">ID: <%= empleado.id %></small>
-                        </div>
-                        <div class="empleado-actions">
-                            <button class="btn-small btn-edit" onclick="editarEmpleado(<%= empleado.id %>, this.getAttribute('data-nombre'))" data-nombre="<%= empleado.nombre %>">✏️ Editar</button>
-                            <button class="btn-small btn-delete" onclick="eliminarEmpleado(<%= empleado.id %>, this.getAttribute('data-nombre'))" data-nombre="<%= empleado.nombre %>">🗑️ Eliminar</button>
-                        </div>
-                    </div>
-                <% }); %>
-            </div>
         </div>
     </div>
     
@@ -438,82 +356,42 @@
                 });
             });
         });
+
+        function aplicarHorarioRegular() {
+            const fechaInput = document.getElementById('fecha-propina');
+            if (!fechaInput || !fechaInput.value) {
+                alert('Elige primero una fecha.');
+                return;
+            }
+            const [y, m, d] = fechaInput.value.split('-').map(Number);
+            const fecha = new Date(y, m - 1, d);
+            const diaSemana = fecha.getDay();
+            fetch('/api/empleados-por-dia/' + diaSemana, { headers: { 'Accept': 'application/json' } })
+                .then(function(r) { return r.ok ? r.json() : Promise.reject(new Error('No se pudo cargar')); })
+                .then(function(data) {
+                    const ids = data.empleadoIds || [];
+                    empleadosSeleccionados = ids.slice();
+                    document.querySelectorAll('.empleado-checkbox').forEach(function(el) {
+                        const cb = el.querySelector('input[type="checkbox"]');
+                        const id = parseInt(cb.value, 10);
+                        cb.checked = ids.indexOf(id) !== -1;
+                        if (cb.checked) el.classList.add('selected'); else el.classList.remove('selected');
+                    });
+                    updateSelectedCount();
+                    const estado = document.getElementById('fecha-estado');
+                    if (estado) {
+                        estado.style.display = 'block';
+                        estado.textContent = 'Pre-seleccionados ' + ids.length + ' empleado(s) según horario regular (día ' + ['Dom','Lun','Mar','Mié','Jue','Vie','Sáb'][diaSemana] + '). Ajusta si hay irregularidades.';
+                        estado.style.color = '#28a745';
+                    }
+                })
+                .catch(function() { alert('Configura primero el horario regular en "Gestor de la semana".'); });
+        }
         
         function updateSelectedCount() {
             const countElement = document.getElementById('selected-count');
             if (countElement) {
                 countElement.textContent = `Empleados seleccionados: ${empleadosSeleccionados.length}`;
-            }
-        }
-        
-        async function agregarEmpleado() {
-            const nombre = document.getElementById('nuevo-empleado').value.trim();
-            
-            if (!nombre) {
-                alert('Por favor ingresa un nombre');
-                return;
-            }
-            
-            try {
-                const response = await fetch('/api/empleados', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({ nombre })
-                });
-                
-                if (response.ok) {
-                    alert('Empleado agregado exitosamente');
-                    location.reload();
-                } else {
-                    alert('Error al agregar empleado');
-                }
-            } catch (error) {
-                alert('Error al agregar empleado: ' + error.message);
-            }
-        }
-        
-        async function editarEmpleado(id, nombreActual) {
-            const nuevoNombre = prompt('Nuevo nombre:', nombreActual);
-            if (!nuevoNombre || nuevoNombre.trim() === '') return;
-            
-            try {
-                const response = await fetch(`/api/empleados/${id}`, {
-                    method: 'PUT',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({ nombre: nuevoNombre.trim() })
-                });
-                
-                if (response.ok) {
-                    document.getElementById(`nombre-${id}`).textContent = nuevoNombre.trim();
-                    alert('Empleado actualizado exitosamente');
-                } else {
-                    alert('Error al actualizar empleado');
-                }
-            } catch (error) {
-                alert('Error al actualizar empleado: ' + error.message);
-            }
-        }
-        
-        async function eliminarEmpleado(id, nombre) {
-            if (!confirm(`¿Estás seguro de que quieres eliminar a ${nombre}?`)) return;
-            
-            try {
-                const response = await fetch(`/api/empleados/${id}`, {
-                    method: 'DELETE'
-                });
-                
-                if (response.ok) {
-                    document.getElementById(`empleado-${id}`).remove();
-                    alert('Empleado eliminado exitosamente');
-                } else {
-                    alert('Error al eliminar empleado');
-                }
-            } catch (error) {
-                alert('Error al eliminar empleado: ' + error.message);
             }
         }
         
@@ -617,9 +495,9 @@
                 });
                 
                 if (response.status === 404) {
-                    // No hay propinas para esta fecha
-                    estadoElement.textContent = 'No hay propinas registradas para esta fecha. Puedes registrar nuevas propinas.';
+                    estadoElement.textContent = 'No hay propinas para esta fecha. Aplicando horario regular para pre-seleccionar quiénes trabajan...';
                     estadoElement.style.color = '#007bff';
+                    aplicarHorarioRegular();
                     return;
                 }
                 

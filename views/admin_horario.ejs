@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gestor de la semana - Sistema de Propinas</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Arial', sans-serif; background: #f8f9fa; min-height: 100vh; }
+        .header {
+            background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%);
+            color: white;
+            padding: 20px 0;
+            text-align: center;
+            position: relative;
+        }
+        .logout-btn {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            padding: 8px 16px;
+            background: rgba(255,255,255,0.2);
+            color: white;
+            text-decoration: none;
+            border-radius: 6px;
+            font-size: 14px;
+        }
+        .logout-btn:hover { background: rgba(255,255,255,0.3); }
+        .header h1 { font-size: 2rem; margin-bottom: 10px; }
+        .container { max-width: 900px; margin: 0 auto; padding: 20px; }
+        .nav-buttons { display: flex; gap: 10px; margin-bottom: 30px; flex-wrap: wrap; }
+        .nav-btn {
+            padding: 10px 20px;
+            background: #fff;
+            border: 2px solid #667eea;
+            color: #667eea;
+            border-radius: 8px;
+            text-decoration: none;
+            font-weight: 500;
+        }
+        .nav-btn:hover { background: #667eea; color: white; }
+        .nav-btn.logout { background: #6c757d; color: white; border-color: #6c757d; }
+        .nav-btn.logout:hover { background: #5a6268; }
+        .admin-section {
+            background: white;
+            padding: 30px;
+            border-radius: 15px;
+            margin-bottom: 30px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+        }
+        .section-title {
+            font-size: 1.5rem;
+            color: #333;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #e74c3c;
+        }
+        .horario-table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+        .horario-table th, .horario-table td { padding: 10px; text-align: center; border: 1px solid #dee2e6; }
+        .horario-table th { background: #f8f9fa; font-weight: 600; }
+        .horario-table td:first-child { text-align: left; font-weight: 500; }
+        .horario-table input[type="checkbox"] { width: 18px; height: 18px; cursor: pointer; }
+        .btn {
+            padding: 12px 30px;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+        }
+        .btn-secondary { background: #6c757d; color: white; }
+        .btn-secondary:hover { background: #5a6268; }
+        .btn-horario { margin-top: 15px; }
+        @media (max-width: 768px) {
+            .container { padding: 10px; }
+            .admin-section { padding: 20px; }
+            .nav-buttons { flex-direction: column; }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <a href="/logout" class="logout-btn">🚪 Salir</a>
+        <h1>📅 Gestor de la semana</h1>
+        <p>Horario regular por empleado</p>
+    </div>
+    <div class="container">
+        <% if (typeof error !== 'undefined' && error) { %>
+            <div style="background:#f8d7da;color:#721c24;padding:15px;border-radius:8px;margin-bottom:20px;"><strong>Error:</strong> <%= error %></div>
+        <% } %>
+        <div class="nav-buttons">
+            <a href="/admin" class="nav-btn">← Panel Admin</a>
+            <a href="/empleados" class="nav-btn">👥 Vista Empleados</a>
+            <a href="/historico" class="nav-btn">📊 Histórico</a>
+            <a href="/admin/empleados" class="nav-btn">👤 Gestión de Empleados</a>
+            <a href="/admin/modificacion" class="nav-btn">✏️ Modificar Propinas</a>
+            <a href="/logout" class="nav-btn logout">🚪 Cerrar Sesión</a>
+        </div>
+        <div class="admin-section">
+            <h2 class="section-title">Horario regular</h2>
+            <p style="margin-bottom: 15px; color: #555;">Marca los días que <strong>trabaja</strong> cada empleado. Los no marcados son días de descanso. Al registrar propinas podrás aplicar este horario para pre-seleccionar quiénes trabajan ese día.</p>
+            <table class="horario-table" id="horario-table">
+                <thead>
+                    <tr>
+                        <th>Empleado</th>
+                        <th>Dom</th><th>Lun</th><th>Mar</th><th>Mié</th><th>Jue</th><th>Vie</th><th>Sáb</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <% (typeof empleados !== 'undefined' ? empleados : []).forEach(emp => { %>
+                    <tr>
+                        <td><%= emp.nombre %></td>
+                        <% [0,1,2,3,4,5,6].forEach(function(dia){ %>
+                        <td><input type="checkbox" class="horario-cb" data-empleado-id="<%= emp.id %>" data-dia="<%= dia %>" id="h-<%= emp.id %>-<%= dia %>" title="Trabaja este día"></td>
+                        <% }); %>
+                    </tr>
+                    <% }); %>
+                </tbody>
+            </table>
+            <button type="button" class="btn btn-secondary btn-horario" id="btn-guardar-horario" onclick="guardarHorarioRegular()">💾 Guardar horario regular</button>
+            <span id="horario-guardado-ok" style="display:none; margin-left:10px; color:#28a745;">Guardado.</span>
+        </div>
+    </div>
+    <script>
+        document.addEventListener('DOMContentLoaded', cargarHorarioRegular);
+        async function cargarHorarioRegular() {
+            try {
+                const res = await fetch('/api/horario-regular', { headers: { 'Accept': 'application/json' } });
+                if (!res.ok) return;
+                const data = await res.json();
+                if (data.horario && Array.isArray(data.horario)) {
+                    data.horario.forEach(function(emp) {
+                        (emp.dias || []).forEach(function(dia) {
+                            const cb = document.getElementById('h-' + emp.id + '-' + dia);
+                            if (cb) cb.checked = true;
+                        });
+                    });
+                }
+            } catch (e) {}
+        }
+        async function guardarHorarioRegular() {
+            const empleadosIds = [];
+            document.querySelectorAll('.horario-cb').forEach(function(cb) {
+                const empId = parseInt(cb.getAttribute('data-empleado-id'), 10);
+                if (!empleadosIds.includes(empId)) empleadosIds.push(empId);
+            });
+            const porEmpleado = {};
+            empleadosIds.forEach(function(id) { porEmpleado[id] = []; });
+            document.querySelectorAll('.horario-cb:checked').forEach(function(cb) {
+                const empId = parseInt(cb.getAttribute('data-empleado-id'), 10);
+                const dia = parseInt(cb.getAttribute('data-dia'), 10);
+                if (!porEmpleado[empId]) porEmpleado[empId] = [];
+                porEmpleado[empId].push(dia);
+            });
+            const btn = document.getElementById('btn-guardar-horario');
+            const ok = document.getElementById('horario-guardado-ok');
+            if (btn) btn.disabled = true;
+            try {
+                for (const id of empleadosIds) {
+                    await fetch('/api/empleados/' + id + '/horario', {
+                        method: 'PUT',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ dias: porEmpleado[id] || [] })
+                    });
+                }
+                if (ok) { ok.style.display = 'inline'; setTimeout(function(){ ok.style.display = 'none'; }, 2000); }
+            } catch (e) {
+                alert('Error al guardar horario: ' + (e.message || e));
+            }
+            if (btn) btn.disabled = false;
+        }
+    </script>
+</body>
+</html>
