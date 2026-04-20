@@ -134,33 +134,22 @@
 
       grid.addEventListener('click', (e) => {
         const overrideBtn = e.target.closest('[data-action="override"]');
-        if (overrideBtn) {
-          e.preventDefault();
-          e.stopPropagation();
-          const card = overrideBtn.closest('.checkbox-card');
-          const id = parseInt(card.dataset.id, 10);
-          const current = overrides.has(id) ? (overrides.get(id) / 100).toFixed(2) : '';
-          const input = prompt(`Override ${card.dataset.name}'s share (blank to remove):`, current);
-          if (input === null) return;
-          const val = input.trim();
-          if (val === '') overrides.delete(id);
-          else {
-            const c = Math.round(parseFloat(val) * 100);
-            if (!Number.isFinite(c) || c < 0) return window.notify.error('Invalid amount');
-            overrides.set(id, c);
-            selectedSet.add(id);
-          }
-          updateCard(id);
-          countEl.textContent = selectedSet.size;
-          updatePreview();
-          return;
-        }
-        const card = e.target.closest('.checkbox-card');
-        if (!card) return;
-        if (e.target.tagName === 'INPUT') return;
+        if (!overrideBtn) return;
+        e.preventDefault();
+        e.stopPropagation();
+        const card = overrideBtn.closest('.checkbox-card');
         const id = parseInt(card.dataset.id, 10);
-        if (selectedSet.has(id)) { selectedSet.delete(id); overrides.delete(id); }
-        else selectedSet.add(id);
+        const current = overrides.has(id) ? (overrides.get(id) / 100).toFixed(2) : '';
+        const input = prompt(`Override ${card.dataset.name}'s share (blank to remove):`, current);
+        if (input === null) return;
+        const val = input.trim();
+        if (val === '') overrides.delete(id);
+        else {
+          const c = Math.round(parseFloat(val) * 100);
+          if (!Number.isFinite(c) || c < 0) return window.notify.error('Invalid amount');
+          overrides.set(id, c);
+          selectedSet.add(id);
+        }
         updateCard(id);
         countEl.textContent = selectedSet.size;
         updatePreview();

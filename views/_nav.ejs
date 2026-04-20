@@ -36,10 +36,19 @@
     <% } %>
   </nav>
   <div class="topbar-right">
-    <form class="lang-form" method="POST" action="/lang">
+    <form class="lang-form" method="POST" action="/currency" data-autosubmit>
       <input type="hidden" name="_csrf" value="<%= csrfToken %>">
       <input type="hidden" name="redirect" value="<%= currentPath %>">
-      <select name="lang" aria-label="<%= t('nav.language') %>" onchange="this.form.submit()">
+      <select name="currency" aria-label="Currency">
+        <% supportedCurrencies.forEach(function(code) { %>
+          <option value="<%= code %>" <%= code === currency ? 'selected' : '' %>><%= code %></option>
+        <% }); %>
+      </select>
+    </form>
+    <form class="lang-form" method="POST" action="/lang" data-autosubmit>
+      <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+      <input type="hidden" name="redirect" value="<%= currentPath %>">
+      <select name="lang" aria-label="<%= t('nav.language') %>">
         <% supportedLocales.forEach(function(code) { %>
           <option value="<%= code %>" <%= code === lang ? 'selected' : '' %>><%= code.toUpperCase() %></option>
         <% }); %>

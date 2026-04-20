@@ -188,6 +188,12 @@
       '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
     }[s]));
 
+  // ---------- Auto-submit forms (e.g. language + currency switchers) ----------
+  document.addEventListener('change', (e) => {
+    const form = e.target.closest('form[data-autosubmit]');
+    if (form && form.contains(e.target)) form.submit();
+  });
+
   // ---------- dirty/unsaved guard ----------
   let dirty = false;
   window.markDirty = () => { dirty = true; };

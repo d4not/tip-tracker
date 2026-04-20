@@ -115,10 +115,19 @@ module.exports = function pagesRouter(db, loginLimiter) {
     } catch (err) { next(err); }
   });
 
-  // Language switch: POST with ?lang=en|es, sets a cookie and redirects back.
+  // Language switch: POST with lang=en|es, sets a cookie and redirects back.
   router.post('/lang', (req, res) => {
     const lang = ['en', 'es'].includes(req.body.lang) ? req.body.lang : 'en';
     res.cookie('lang', lang, { maxAge: 365 * 24 * 60 * 60 * 1000, sameSite: 'lax' });
+    const back = safeRedirectPath(req.body.redirect, '/');
+    res.redirect(back);
+  });
+
+  // Currency switch: POST with currency=USD|MXN|…, sets a cookie and redirects back.
+  const { SUPPORTED_CURRENCIES } = require('../lib/money');
+  router.post('/currency', (req, res) => {
+    const cur = SUPPORTED_CURRENCIES.includes(req.body.currency) ? req.body.currency : 'USD';
+    res.cookie('currency', cur, { maxAge: 365 * 24 * 60 * 60 * 1000, sameSite: 'lax' });
     const back = safeRedirectPath(req.body.redirect, '/');
     res.redirect(back);
   });

@@ -11,7 +11,7 @@ const { logger, requestIdMiddleware, accessLogMiddleware } = require('./lib/logg
 const { middleware: i18nMiddleware } = require('./lib/i18n');
 const { issueMiddleware: csrfIssue, enforceMiddleware: csrfEnforce } = require('./lib/csrf');
 const { formatDate } = require('./lib/dates');
-const { centsToDollars, CURRENCY, LOCALE } = require('./lib/money');
+const { centsToDollars, middleware: currencyMiddleware } = require('./lib/money');
 
 const pagesRouter = require('./routes/pages');
 const apiRouter = require('./routes/api');
@@ -85,14 +85,13 @@ app.use(session({
 }));
 
 app.use(i18nMiddleware);
+app.use(currencyMiddleware);
 app.use(csrfIssue);
 
 // Locals exposed to every view.
 app.use((req, res, next) => {
   res.locals.formatDate = formatDate;
   res.locals.centsToDollars = centsToDollars;
-  res.locals.currency = CURRENCY;
-  res.locals.locale = LOCALE;
   res.locals.isAdmin = !!(req.session && req.session.authenticated);
   res.locals.currentPath = req.path;
   res.locals.appName = 'Tip Tracker';

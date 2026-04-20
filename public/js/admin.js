@@ -97,23 +97,24 @@
   }
 
   if (grid) {
+    // Override button: run the prompt and suppress the label's native toggle.
     grid.addEventListener('click', (e) => {
       const overrideBtn = e.target.closest('[data-action="override"]');
-      if (overrideBtn) {
-        e.preventDefault();
-        e.stopPropagation();
-        const card = overrideBtn.closest('.checkbox-card');
-        promptOverride(parseInt(card.dataset.id, 10), card.dataset.name || '');
-        return;
-      }
-      const card = e.target.closest('.checkbox-card');
-      if (!card) return;
-      if (e.target.tagName === 'INPUT') return;
-      toggleSelection(parseInt(card.dataset.id, 10));
+      if (!overrideBtn) return;
+      e.preventDefault();
+      e.stopPropagation();
+      const card = overrideBtn.closest('.checkbox-card');
+      promptOverride(parseInt(card.dataset.id, 10), card.dataset.name || '');
     });
+    // Single source of truth: the checkbox's change event. Clicking the label
+    // (anywhere in the card) already fires this via native behaviour.
     grid.querySelectorAll('.checkbox-card input[type="checkbox"]').forEach((cb) => {
       cb.addEventListener('change', () => {
-        toggleSelection(parseInt(cb.value, 10));
+        const id = parseInt(cb.value, 10);
+        if (cb.checked) selected.add(id);
+        else { selected.delete(id); overrides.delete(id); }
+        render();
+        window.markDirty();
       });
     });
   }
