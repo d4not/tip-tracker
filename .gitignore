@@ -1,0 +1,14 @@
+node_modules/
+data/
+tips.db
+tips.db-shm
+tips.db-wal
+.env
+.env.local
+coverage/
+*.log
+.DS_Store
+.idea/
+.vscode/
+*.sqlite
+*.sqlite-*

@@ -1,0 +1,60 @@
+<header class="topbar">
+  <a href="/" class="topbar-brand">
+    <svg class="icon icon-lg" aria-hidden="true"><use href="/icons.svg#i-dollar"/></svg>
+    <%= appName %>
+  </a>
+  <nav class="topbar-nav" aria-label="Main">
+    <a href="/employees" class="<%= currentPath.startsWith('/employees') ? 'current' : '' %>">
+      <svg class="icon" aria-hidden="true"><use href="/icons.svg#i-users"/></svg>
+      <%= t('nav.employees') %>
+    </a>
+    <a href="/history" class="<%= currentPath.startsWith('/history') ? 'current' : '' %>">
+      <svg class="icon" aria-hidden="true"><use href="/icons.svg#i-history"/></svg>
+      <%= t('nav.history') %>
+    </a>
+    <% if (isAdmin) { %>
+      <a href="/admin" class="<%= currentPath === '/admin' ? 'current' : '' %>">
+        <svg class="icon" aria-hidden="true"><use href="/icons.svg#i-dollar"/></svg>
+        <%= t('nav.record') %>
+      </a>
+      <a href="/admin/employees" class="<%= currentPath === '/admin/employees' ? 'current' : '' %>">
+        <svg class="icon" aria-hidden="true"><use href="/icons.svg#i-users"/></svg>
+        <%= t('nav.manageEmployees') %>
+      </a>
+      <a href="/admin/schedule" class="<%= currentPath === '/admin/schedule' ? 'current' : '' %>">
+        <svg class="icon" aria-hidden="true"><use href="/icons.svg#i-calendar"/></svg>
+        <%= t('nav.schedule') %>
+      </a>
+      <a href="/admin/edit-tips" class="<%= currentPath === '/admin/edit-tips' ? 'current' : '' %>">
+        <svg class="icon" aria-hidden="true"><use href="/icons.svg#i-edit"/></svg>
+        <%= t('nav.editTips') %>
+      </a>
+      <a href="/admin/audit" class="<%= currentPath === '/admin/audit' ? 'current' : '' %>">
+        <svg class="icon" aria-hidden="true"><use href="/icons.svg#i-list"/></svg>
+        <%= t('nav.audit') %>
+      </a>
+    <% } %>
+  </nav>
+  <div class="topbar-right">
+    <form class="lang-form" method="POST" action="/lang">
+      <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+      <input type="hidden" name="redirect" value="<%= currentPath %>">
+      <select name="lang" aria-label="<%= t('nav.language') %>" onchange="this.form.submit()">
+        <% supportedLocales.forEach(function(code) { %>
+          <option value="<%= code %>" <%= code === lang ? 'selected' : '' %>><%= code.toUpperCase() %></option>
+        <% }); %>
+      </select>
+    </form>
+    <% if (isAdmin) { %>
+      <a href="/logout" class="btn btn-ghost btn-sm" aria-label="<%= t('nav.signOut') %>">
+        <svg class="icon" aria-hidden="true"><use href="/icons.svg#i-logout"/></svg>
+        <%= t('nav.signOut') %>
+      </a>
+    <% } else { %>
+      <a href="/login" class="btn btn-ghost btn-sm">
+        <svg class="icon" aria-hidden="true"><use href="/icons.svg#i-login"/></svg>
+        <%= t('nav.signIn') %>
+      </a>
+    <% } %>
+  </div>
+</header>

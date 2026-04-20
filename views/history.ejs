@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="<%= lang %>">
+<head>
+  <%- include('_head', { pageTitle: t('history.title') }) %>
+  <script src="/js/history.js" defer></script>
+</head>
+<body>
+  <div class="app" data-page="history" data-admin="<%= isAdmin ? '1' : '0' %>">
+    <%- include('_nav') %>
+    <main>
+      <div class="page-header">
+        <h1><%= t('history.title') %></h1>
+        <div class="subtitle"><%= t('history.subtitle') %></div>
+      </div>
+
+      <% if (typeof error !== 'undefined' && error) { %>
+        <div class="alert alert-error"><%= error %></div>
+      <% } %>
+
+      <div class="card">
+        <form method="get" class="row" style="align-items:flex-end;">
+          <div class="grow">
+            <label for="from"><%= t('history.filter.from') %></label>
+            <input type="date" id="from" name="from" value="<%= from || '' %>">
+          </div>
+          <div class="grow">
+            <label for="to"><%= t('history.filter.to') %></label>
+            <input type="date" id="to" name="to" value="<%= to || '' %>">
+          </div>
+          <button type="submit" class="btn btn-primary">
+            <svg class="icon" aria-hidden="true"><use href="/icons.svg#i-search"/></svg>
+            <%= t('history.filter.apply') %>
+          </button>
+          <a href="/history" class="btn btn-secondary"><%= t('history.filter.reset') %></a>
+          <a class="btn btn-secondary" href="/history.csv<%= (from || to) ? '?' + [from ? 'from=' + from : '', to ? 'to=' + to : ''].filter(function(x){return x;}).join('&') : '' %>">
+            <svg class="icon" aria-hidden="true"><use href="/icons.svg#i-download"/></svg>
+            CSV
+          </a>
+          <button type="button" class="btn btn-secondary" data-action="print">
+            <%= t('common.print') %>
+          </button>
+        </form>
+      </div>
+
+      <% if (history && history.length > 0) {
+        var total = history.reduce(function(s, h) { return s + h.total_cents; }, 0);
+        var nonZero = history.filter(function(h) { return h.total_cents > 0; });
+        var avg = nonZero.length ? total / nonZero.length : 0;
+        var peak = history.reduce(function(m, h) { return (h.total_cents > (m ? m.total_cents : 0)) ? h : m; }, null);
+      %>
+        <div class="stats-grid">
+          <div class="stat-card">
+            <div class="value"><%= history.length %></div>
+            <div class="label"><%= t('history.stats.days') %></div>
+          </div>
+          <div class="stat-card">
+            <div class="value" data-cents="<%= total %>">$<%= (total / 100).toFixed(2) %></div>
+            <div class="label"><%= t('history.stats.total') %></div>
+          </div>
+          <div class="stat-card">
+            <div class="value" data-cents="<%= Math.round(avg) %>">$<%= (avg / 100).toFixed(2) %></div>
+            <div class="label"><%= t('history.stats.avg') %></div>
+          </div>
+          <% if (peak) { %>
+          <div class="stat-card">
+            <div class="value" data-cents="<%= peak.total_cents %>">$<%= (peak.total_cents / 100).toFixed(2) %></div>
+            <div class="label"><%= t('history.stats.best') %> (<%= formatDate(peak.date, 'short') %>)</div>
+          </div>
+          <% } %>
+        </div>
+
+        <div class="table-wrapper table-responsive">
+          <table>
+            <thead>
+              <tr>
+                <th><%= t('history.col.date') %></th>
+                <th><%= t('history.col.total') %></th>
+                <th><%= t('history.col.people') %></th>
+                <th><%= t('history.col.perPerson') %></th>
+                <th><%= t('history.col.notes') %></th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>
+              <% history.forEach(function(day) { %>
+                <tr>
+                  <td data-label="<%= t('history.col.date') %>">
+                    <strong><%= formatDate(day.date, 'long') %></strong>
+                    <div class="muted" style="font-size:0.85rem;"><%= formatDate(day.date, 'weekday') %></div>
+                  </td>
+                  <td data-label="<%= t('history.col.total') %>"><span class="amount amount-primary" data-cents="<%= day.total_cents %>">$<%= (day.total_cents / 100).toFixed(2) %></span></td>
+                  <td data-label="<%= t('history.col.people') %>"><span class="tag"><%= day.total_employees %></span></td>
+                  <td data-label="<%= t('history.col.perPerson') %>"><span class="amount" data-cents="<%= Math.round(day.cents_per_employee) %>">$<%= (day.cents_per_employee / 100).toFixed(2) %></span></td>
+                  <td data-label="<%= t('history.col.notes') %>" style="max-width: 240px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                    <% if (day.notes) { %>
+                      <span title="<%= day.notes %>"><%= day.notes %></span>
+                    <% } else { %>
+                      <span class="muted">—</span>
+                    <% } %>
+                  </td>
+                  <td data-label="">
+                    <% if (isAdmin) { %>
+                      <button type="button" class="btn btn-sm btn-secondary" data-action="view-detail" data-date="<%= day.date %>"><%= t('history.view') %></button>
+                    <% } %>
+                  </td>
+                </tr>
+              <% }); %>
+            </tbody>
+          </table>
+        </div>
+      <% } else { %>
+        <div class="empty-state card">
+          <span class="emoji">📭</span>
+          <p><%= t('history.empty') %></p>
+        </div>
+      <% } %>
+    </main>
+
+    <div id="detailModal" class="modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h2 id="modalTitle">Day detail</h2>
+          <button class="close" data-action="close-detail" aria-label="Close">&times;</button>
+        </div>
+        <div class="modal-body" id="modalBody"></div>
+      </div>
+    </div>
+
+    <%- include('_footer') %>
+  </div>
+</body>
+</html>

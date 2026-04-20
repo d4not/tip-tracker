@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="<%= lang %>">
+<head>
+  <%- include('_head', { pageTitle: t('schedule.title') }) %>
+  <script src="/js/admin_schedule.js" defer></script>
+  <style>
+    .schedule-table th, .schedule-table td { text-align: center; }
+    .schedule-table td:first-child, .schedule-table th:first-child { text-align: left; min-width: 180px; }
+    .schedule-table input[type="checkbox"] { width: 18px; height: 18px; cursor: pointer; accent-color: var(--primary); }
+    .col-toggle { margin-top: 4px; font-size: 0.75rem; padding: 2px 6px; }
+  </style>
+</head>
+<body>
+  <div class="app" data-page="admin-schedule">
+    <%- include('_nav') %>
+    <main>
+      <div class="page-header">
+        <h1><%= t('schedule.title') %></h1>
+        <div class="subtitle"><%= t('schedule.subtitle') %></div>
+      </div>
+
+      <% if (typeof error !== 'undefined' && error) { %>
+        <div class="alert alert-error"><%= error %></div>
+      <% } %>
+
+      <div class="card">
+        <p class="muted" style="margin-bottom: 14px;"><%= t('schedule.tip') %></p>
+
+        <% if (!employees || employees.length === 0) { %>
+          <div class="empty-state">
+            <span class="emoji">👤</span>
+            <p><%= t('schedule.empty') %></p>
+          </div>
+        <% } else { %>
+          <div class="table-wrapper" style="margin:0; box-shadow:none; border:none; overflow-x:auto;">
+            <table class="schedule-table">
+              <thead>
+                <tr>
+                  <th>Employee</th>
+                  <% ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'].forEach(function(label, i) { %>
+                    <th>
+                      <div><%= label %></div>
+                      <button type="button" class="btn btn-sm btn-secondary col-toggle" data-day="<%= i %>" aria-label="<%= t('schedule.toggleColumn') %>"><%= t('schedule.toggleColumn') %></button>
+                    </th>
+                  <% }); %>
+                </tr>
+              </thead>
+              <tbody>
+                <% employees.forEach(function(emp) { %>
+                  <tr>
+                    <td><strong><%= emp.name %></strong></td>
+                    <% [0,1,2,3,4,5,6].forEach(function(day) { %>
+                      <td>
+                        <input type="checkbox" class="schedule-cb" data-employee="<%= emp.id %>" data-day="<%= day %>" id="h-<%= emp.id %>-<%= day %>" aria-label="<%= emp.name %>, day <%= day %>">
+                      </td>
+                    <% }); %>
+                  </tr>
+                <% }); %>
+              </tbody>
+            </table>
+          </div>
+
+          <div class="row" style="margin-top:16px;">
+            <button type="button" class="btn btn-primary" id="save-schedule" data-action="save-schedule">
+              <svg class="icon" aria-hidden="true"><use href="/icons.svg#i-check"/></svg>
+              <%= t('schedule.save') %>
+            </button>
+          </div>
+        <% } %>
+      </div>
+    </main>
+    <%- include('_footer') %>
+  </div>
+</body>
+</html>

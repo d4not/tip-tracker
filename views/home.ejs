@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="<%= lang %>">
+<head>
+  <%- include('_head', { pageTitle: t('app.tagline') }) %>
+</head>
+<body>
+  <div class="app">
+    <%- include('_nav') %>
+    <main>
+      <section class="hero">
+        <div class="hero-eyebrow"><%= appName %></div>
+        <h1><%= t('home.hero.title') %></h1>
+        <p><%= t('home.hero.sub') %></p>
+        <div class="row">
+          <a href="/employees" class="btn btn-primary">
+            <svg class="icon" aria-hidden="true"><use href="/icons.svg#i-users"/></svg>
+            <%= t('home.cta.view') %>
+          </a>
+          <% if (!isAdmin) { %>
+            <a href="/login?redirect=/admin" class="btn btn-secondary">
+              <svg class="icon" aria-hidden="true"><use href="/icons.svg#i-login"/></svg>
+              <%= t('home.cta.admin') %>
+            </a>
+          <% } else { %>
+            <a href="/admin" class="btn btn-secondary">
+              <svg class="icon" aria-hidden="true"><use href="/icons.svg#i-dollar"/></svg>
+              <%= t('nav.record') %>
+            </a>
+          <% } %>
+        </div>
+      </section>
+
+      <section class="feature-grid">
+        <div class="feature">
+          <div class="feature-icon"><svg class="icon" aria-hidden="true"><use href="/icons.svg#i-check"/></svg></div>
+          <h3><%= t('home.feature.transparent.title') %></h3>
+          <p><%= t('home.feature.transparent.body') %></p>
+        </div>
+        <div class="feature">
+          <div class="feature-icon"><svg class="icon" aria-hidden="true"><use href="/icons.svg#i-calendar"/></svg></div>
+          <h3><%= t('home.feature.fast.title') %></h3>
+          <p><%= t('home.feature.fast.body') %></p>
+        </div>
+        <div class="feature">
+          <div class="feature-icon"><svg class="icon" aria-hidden="true"><use href="/icons.svg#i-download"/></svg></div>
+          <h3><%= t('home.feature.portable.title') %></h3>
+          <p><%= t('home.feature.portable.body') %></p>
+        </div>
+      </section>
+
+      <section class="how">
+        <h2 style="margin-bottom: 16px;"><%= t('home.how.title') %></h2>
+        <ol>
+          <li><%= t('home.how.step1') %></li>
+          <li><%= t('home.how.step2') %></li>
+          <li><%= t('home.how.step3') %></li>
+        </ol>
+      </section>
+    </main>
+    <%- include('_footer') %>
+  </div>
+</body>
+</html>

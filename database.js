@@ -1,396 +1,407 @@
-const Database = require('better-sqlite3');
 const path = require('path');
+const fs = require('fs');
+const Database = require('better-sqlite3');
 
-class PropinaDatabase {
-  constructor() {
-    this.db = new Database(path.join(__dirname, 'propinas.db'));
+const { weekRange } = require('./lib/dates');
+const { splitCentsEvenly } = require('./lib/money');
+
+const DB_PATH = process.env.DB_PATH || path.join(__dirname, 'data', 'tips.db');
+
+class TipDatabase {
+  constructor(dbPath = DB_PATH) {
+    fs.mkdirSync(path.dirname(dbPath), { recursive: true });
+    this.db = new Database(dbPath);
     this.db.pragma('journal_mode = WAL');
-    // Ejemplo de pragma adicional para optimización
-    this.db.exec("PRAGMA synchronous = NORMAL;");
+    this.db.pragma('synchronous = NORMAL');
+    this.db.pragma('foreign_keys = ON');
+    this.db.pragma('busy_timeout = 5000');
   }
 
   init() {
-    // Tabla de empleados
     this.db.exec(`
-      CREATE TABLE IF NOT EXISTS empleados (
+      CREATE TABLE IF NOT EXISTS employees (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
-        nombre TEXT NOT NULL,
-        activo BOOLEAN DEFAULT 1,
-        fecha_creacion DATETIME DEFAULT CURRENT_TIMESTAMP
-      )
-    `);
+        name TEXT NOT NULL,
+        active INTEGER NOT NULL DEFAULT 1,
+        created_at TEXT NOT NULL DEFAULT (datetime('now'))
+      );
 
-    // Tabla de propinas por día (simplificada)
-    this.db.exec(`
-      CREATE TABLE IF NOT EXISTS propinas_dia (
+      CREATE TABLE IF NOT EXISTS tip_days (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
-        fecha DATE NOT NULL UNIQUE,
-        monto_total REAL NOT NULL,
-        notas TEXT,
-        fecha_creacion DATETIME DEFAULT CURRENT_TIMESTAMP
-      )
-    `);
+        date TEXT NOT NULL UNIQUE,
+        total_cents INTEGER NOT NULL,
+        notes TEXT,
+        created_at TEXT NOT NULL DEFAULT (datetime('now')),
+        updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+      );
 
-    // Tabla de empleados que trabajaron cada día
-    this.db.exec(`
-      CREATE TABLE IF NOT EXISTS empleados_dia (
+      CREATE TABLE IF NOT EXISTS tip_day_employees (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
-        propina_dia_id INTEGER,
-        empleado_id INTEGER,
-        monto_individual REAL NOT NULL,
-        notas_empleado TEXT,
-        FOREIGN KEY (propina_dia_id) REFERENCES propinas_dia(id),
-        FOREIGN KEY (empleado_id) REFERENCES empleados(id)
-      )
+        tip_day_id INTEGER NOT NULL,
+        employee_id INTEGER NOT NULL,
+        individual_cents INTEGER NOT NULL,
+        is_override INTEGER NOT NULL DEFAULT 0,
+        FOREIGN KEY (tip_day_id) REFERENCES tip_days(id) ON DELETE CASCADE,
+        FOREIGN KEY (employee_id) REFERENCES employees(id)
+      );
+
+      CREATE TABLE IF NOT EXISTS employee_workdays (
+        employee_id INTEGER NOT NULL,
+        weekday INTEGER NOT NULL CHECK (weekday >= 0 AND weekday <= 6),
+        PRIMARY KEY (employee_id, weekday),
+        FOREIGN KEY (employee_id) REFERENCES employees(id) ON DELETE CASCADE
+      );
+
+      CREATE TABLE IF NOT EXISTS audit_log (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        ts TEXT NOT NULL DEFAULT (datetime('now')),
+        actor TEXT NOT NULL,
+        action TEXT NOT NULL,
+        target TEXT,
+        payload TEXT
+      );
+
+      CREATE INDEX IF NOT EXISTS idx_tip_days_date ON tip_days(date);
+      CREATE INDEX IF NOT EXISTS idx_tde_day ON tip_day_employees(tip_day_id);
+      CREATE INDEX IF NOT EXISTS idx_tde_employee ON tip_day_employees(employee_id);
+      CREATE INDEX IF NOT EXISTS idx_audit_ts ON audit_log(ts DESC);
     `);
 
-    // Horario regular: qué día de la semana trabaja cada empleado (0=domingo, 1=lunes, ..., 6=sábado)
-    this.db.exec(`
-      CREATE TABLE IF NOT EXISTS empleado_dias_trabajo (
-        empleado_id INTEGER NOT NULL,
-        dia_semana INTEGER NOT NULL CHECK (dia_semana >= 0 AND dia_semana <= 6),
-        PRIMARY KEY (empleado_id, dia_semana),
-        FOREIGN KEY (empleado_id) REFERENCES empleados(id)
-      )
-    `);
+    this._runMigrations();
 
-    // Insertar empleados de ejemplo si no existen
-    const countStmt = this.db.prepare("SELECT COUNT(*) as count FROM empleados");
-    const result = countStmt.get();
-    
-    if (result.count === 0) {
-      this.createSampleEmployees();
+    const { count } = this.db.prepare('SELECT COUNT(*) as count FROM employees').get();
+    if (count === 0) this.createSampleEmployees();
+  }
+
+  // Forward-only migrations. Idempotent.
+  _runMigrations() {
+    const cols = (t) => this.db.prepare(`PRAGMA table_info(${t})`).all().map((c) => c.name);
+
+    const tdCols = cols('tip_days');
+    if (!tdCols.includes('total_cents') && tdCols.includes('total_amount')) {
+      this.db.exec(`ALTER TABLE tip_days ADD COLUMN total_cents INTEGER NOT NULL DEFAULT 0`);
+      this.db.exec(`UPDATE tip_days SET total_cents = ROUND(total_amount * 100)`);
+    }
+    const tdeCols = cols('tip_day_employees');
+    if (!tdeCols.includes('individual_cents') && tdeCols.includes('individual_amount')) {
+      this.db.exec(`ALTER TABLE tip_day_employees ADD COLUMN individual_cents INTEGER NOT NULL DEFAULT 0`);
+      this.db.exec(`UPDATE tip_day_employees SET individual_cents = ROUND(individual_amount * 100)`);
+    }
+    if (!cols('tip_day_employees').includes('is_override')) {
+      this.db.exec(`ALTER TABLE tip_day_employees ADD COLUMN is_override INTEGER NOT NULL DEFAULT 0`);
+    }
+    if (!cols('tip_days').includes('updated_at')) {
+      this.db.exec(`ALTER TABLE tip_days ADD COLUMN updated_at TEXT`);
     }
   }
 
-  // Método para crear empleados de prueba
   createSampleEmployees() {
-    const empleadosEjemplo = [
-      'Ana García', 'Carlos López', 'María Torres', 'Juan Pérez',
-      'Laura Sánchez', 'Pedro Martín', 'Sofia Ruiz', 'Diego Herrera'
+    const samples = [
+      'Ava Johnson', 'Liam Smith', 'Olivia Brown', 'Noah Davis',
+      'Emma Wilson', 'Ethan Martinez', 'Sophia Anderson', 'Mason Garcia'
     ];
-    
-    const insertStmt = this.db.prepare("INSERT INTO empleados (nombre) VALUES (?)");
-    empleadosEjemplo.forEach(nombre => {
-      try {
-        insertStmt.run(nombre);
-        console.log(`Empleado creado: ${nombre}`);
-      } catch (error) {
-        console.log(`Empleado ya existe o error: ${nombre}`);
-      }
-    });
+    const has = this.db.prepare('SELECT 1 FROM employees WHERE LOWER(name) = LOWER(?)');
+    const insert = this.db.prepare('INSERT INTO employees (name) VALUES (?)');
+    let added = 0;
+    for (const name of samples) {
+      if (!has.get(name)) { insert.run(name); added++; }
+    }
+    return added;
   }
 
-  // Método para resetear la base de datos
   reset() {
-    this.db.exec("DROP TABLE IF EXISTS empleado_dias_trabajo");
-    this.db.exec("DROP TABLE IF EXISTS empleados_dia");
-    this.db.exec("DROP TABLE IF EXISTS propinas_dia");
-    this.db.exec("DROP TABLE IF EXISTS empleados");
+    this.db.exec(`
+      DROP TABLE IF EXISTS employee_workdays;
+      DROP TABLE IF EXISTS tip_day_employees;
+      DROP TABLE IF EXISTS tip_days;
+      DROP TABLE IF EXISTS employees;
+      DROP TABLE IF EXISTS audit_log;
+    `);
     this.init();
   }
 
-  // --- Horario regular (días que trabaja cada empleado, 0=domingo..6=sábado) ---
-  getDiasTrabajo(empleadoId) {
-    const stmt = this.db.prepare("SELECT dia_semana FROM empleado_dias_trabajo WHERE empleado_id = ? ORDER BY dia_semana");
-    return stmt.all(empleadoId).map((r) => r.dia_semana);
+  close() {
+    try { this.db.close(); } catch { /* already closed */ }
   }
 
-  setDiasTrabajo(empleadoId, dias) {
-    const del = this.db.prepare("DELETE FROM empleado_dias_trabajo WHERE empleado_id = ?");
-    const ins = this.db.prepare("INSERT INTO empleado_dias_trabajo (empleado_id, dia_semana) VALUES (?, ?)");
+  ping() {
+    const start = process.hrtime.bigint();
+    this.db.prepare('SELECT 1').get();
+    return Number(process.hrtime.bigint() - start) / 1e6;
+  }
+
+  backupTo(filePath) {
+    this.db.exec(`VACUUM INTO '${filePath.replace(/'/g, "''")}'`);
+  }
+
+  // --- Audit ---
+  recordAudit(actor, action, target, payload) {
+    this.db.prepare('INSERT INTO audit_log (actor, action, target, payload) VALUES (?, ?, ?, ?)')
+      .run(actor || 'system', action, target || null, payload == null ? null : JSON.stringify(payload));
+  }
+
+  getAuditLog({ limit = 200, offset = 0, action } = {}) {
+    if (action) {
+      return this.db.prepare(
+        `SELECT * FROM audit_log WHERE action = ? ORDER BY ts DESC LIMIT ? OFFSET ?`
+      ).all(action, limit, offset);
+    }
+    return this.db.prepare(
+      `SELECT * FROM audit_log ORDER BY ts DESC LIMIT ? OFFSET ?`
+    ).all(limit, offset);
+  }
+
+  // --- Employees ---
+  getEmployees() {
+    return this.db.prepare('SELECT id, name, active FROM employees WHERE active = 1 ORDER BY name').all();
+  }
+
+  getAllEmployees() {
+    return this.db.prepare('SELECT id, name, active FROM employees ORDER BY name').all();
+  }
+
+  getEmployee(id) {
+    return this.db.prepare('SELECT id, name, active FROM employees WHERE id = ?').get(id);
+  }
+
+  addEmployee(name) {
+    const existing = this.db.prepare(
+      'SELECT id, active FROM employees WHERE LOWER(name) = LOWER(?) ORDER BY active DESC, id DESC'
+    ).get(name);
+    if (existing) {
+      if (!existing.active) {
+        this.db.prepare('UPDATE employees SET active = 1, name = ? WHERE id = ?').run(name, existing.id);
+        return { id: existing.id, reactivated: true };
+      }
+      throw new Error('An employee with that name already exists');
+    }
+    const info = this.db.prepare('INSERT INTO employees (name) VALUES (?)').run(name);
+    return { id: info.lastInsertRowid, reactivated: false };
+  }
+
+  updateEmployee(id, name) {
+    return this.db.prepare('UPDATE employees SET name = ? WHERE id = ?').run(name, id);
+  }
+
+  deleteEmployee(id) {
+    const tx = this.db.transaction((empId) => {
+      this.db.prepare('UPDATE employees SET active = 0 WHERE id = ?').run(empId);
+      this.db.prepare('DELETE FROM employee_workdays WHERE employee_id = ?').run(empId);
+    });
+    tx(id);
+  }
+
+  restoreEmployee(id) {
+    return this.db.prepare('UPDATE employees SET active = 1 WHERE id = ?').run(id);
+  }
+
+  // --- Schedule ---
+  getWorkdays(employeeId) {
+    return this.db
+      .prepare('SELECT weekday FROM employee_workdays WHERE employee_id = ? ORDER BY weekday')
+      .all(employeeId)
+      .map((r) => r.weekday);
+  }
+
+  setWorkdays(employeeId, weekdays) {
+    const del = this.db.prepare('DELETE FROM employee_workdays WHERE employee_id = ?');
+    const ins = this.db.prepare('INSERT INTO employee_workdays (employee_id, weekday) VALUES (?, ?)');
     this.db.transaction(() => {
-      del.run(empleadoId);
-      const diasNum = (Array.isArray(dias) ? dias : []).map((d) => parseInt(d, 10)).filter((d) => !isNaN(d) && d >= 0 && d <= 6);
-      diasNum.forEach((dia) => ins.run(empleadoId, dia));
+      del.run(employeeId);
+      const clean = (Array.isArray(weekdays) ? weekdays : [])
+        .map((d) => parseInt(d, 10))
+        .filter((d) => Number.isInteger(d) && d >= 0 && d <= 6);
+      clean.forEach((d) => ins.run(employeeId, d));
     })();
   }
 
-  getEmpleadosQueTrabajanDia(diaSemana) {
-    const d = parseInt(diaSemana, 10);
-    if (isNaN(d) || d < 0 || d > 6) return [];
-    const stmt = this.db.prepare("SELECT empleado_id FROM empleado_dias_trabajo WHERE dia_semana = ?");
-    return stmt.all(d).map((r) => r.empleado_id);
+  getEmployeesWorkingOn(weekday) {
+    const d = parseInt(weekday, 10);
+    if (!Number.isInteger(d) || d < 0 || d > 6) return [];
+    return this.db
+      .prepare('SELECT employee_id FROM employee_workdays WHERE weekday = ?')
+      .all(d)
+      .map((r) => r.employee_id);
   }
 
-  getAllHorarioRegular() {
-    const empleados = this.getEmpleados();
-    return empleados.map((e) => ({
+  getSchedule() {
+    return this.getEmployees().map((e) => ({
       id: e.id,
-      nombre: e.nombre,
-      dias: this.getDiasTrabajo(e.id)
+      name: e.name,
+      weekdays: this.getWorkdays(e.id)
     }));
   }
 
-  // Métodos para propinas
-  addPropina(fecha, empleadosIds, montoTotal, notas) {
-    const ids = Array.isArray(empleadosIds)
-      ? empleadosIds.map((id) => parseInt(id, 10)).filter((id) => !isNaN(id))
-      : [];
-    if (ids.length === 0) throw new Error('Se requiere al menos un empleado válido');
+  // --- Tips ---
+  saveTipDay(date, employeeIds, totalCents, notes, overrides = {}) {
+    const ids = [...new Set((Array.isArray(employeeIds) ? employeeIds : [])
+      .map((id) => parseInt(id, 10))
+      .filter((id) => Number.isInteger(id) && id > 0))];
+    if (ids.length === 0) throw new Error('At least one valid employee is required');
 
-    const transaction = this.db.transaction((f, eIds, monto, n) => {
-      // Verificar si ya existe una propina para esta fecha
-      const checkExistingStmt = this.db.prepare("SELECT id FROM propinas_dia WHERE fecha = ?");
-      const existing = checkExistingStmt.get(f);
-      
-      let propinasDiaId;
+    const tx = this.db.transaction(() => {
+      const existing = this.db.prepare('SELECT id FROM tip_days WHERE date = ?').get(date);
+      let tipDayId;
       let wasUpdated = false;
-      
+
       if (existing) {
-        // Actualizar la propina existente
-        const updateDiaStmt = this.db.prepare("UPDATE propinas_dia SET monto_total = ?, notas = ? WHERE id = ?");
-        updateDiaStmt.run(monto, n, existing.id);
-        
-        // Eliminar los empleados existentes para esta propina
-        const deleteEmpleadosStmt = this.db.prepare("DELETE FROM empleados_dia WHERE propina_dia_id = ?");
-        deleteEmpleadosStmt.run(existing.id);
-        
-        propinasDiaId = existing.id;
+        this.db.prepare(
+          `UPDATE tip_days SET total_cents = ?, notes = ?, updated_at = datetime('now') WHERE id = ?`
+        ).run(totalCents, notes, existing.id);
+        this.db.prepare('DELETE FROM tip_day_employees WHERE tip_day_id = ?').run(existing.id);
+        tipDayId = existing.id;
         wasUpdated = true;
       } else {
-        // Insertar una nueva propina
-        const insertDiaStmt = this.db.prepare("INSERT INTO propinas_dia (fecha, monto_total, notas) VALUES (?, ?, ?)");
-        const result = insertDiaStmt.run(f, monto, n);
-        propinasDiaId = result.lastInsertRowid;
+        tipDayId = this.db.prepare(
+          `INSERT INTO tip_days (date, total_cents, notes) VALUES (?, ?, ?)`
+        ).run(date, totalCents, notes).lastInsertRowid;
       }
-      
-      const montoPorEmpleado = monto / eIds.length;
 
-      const insertEmpleadoStmt = this.db.prepare("INSERT INTO empleados_dia (propina_dia_id, empleado_id, monto_individual) VALUES (?, ?, ?)");
-      eIds.forEach(empleadoId => {
-        insertEmpleadoStmt.run(propinasDiaId, empleadoId, montoPorEmpleado);
-      });
+      const overrideTotal = Object.values(overrides).reduce((s, v) => s + (Number(v) || 0), 0);
+      const remainderIds = ids.filter((id) => !(id in overrides));
+      const remainderCents = totalCents - overrideTotal;
 
-      return { propinasDiaId, wasUpdated };
+      let split = {};
+      if (remainderIds.length > 0 && remainderCents > 0) {
+        split = splitCentsEvenly(remainderCents, remainderIds);
+      }
+
+      const ins = this.db.prepare(
+        `INSERT INTO tip_day_employees (tip_day_id, employee_id, individual_cents, is_override)
+         VALUES (?, ?, ?, ?)`
+      );
+
+      for (const id of ids) {
+        if (id in overrides) {
+          ins.run(tipDayId, id, overrides[id], 1);
+        } else {
+          ins.run(tipDayId, id, split[id] || 0, 0);
+        }
+      }
+      return { tipDayId, wasUpdated };
     });
-
-    return transaction(fecha, ids, montoTotal, notas || '');
+    return tx();
   }
 
-  updatePropina(fecha, montoTotal, notas = '') {
-    const stmt = this.db.prepare("UPDATE propinas_dia SET monto_total = ?, notas = ? WHERE fecha = ?");
-    return stmt.run(montoTotal, notas, fecha);
+  deleteTipDay(date) {
+    const tx = this.db.transaction((d) => {
+      const row = this.db.prepare('SELECT id FROM tip_days WHERE date = ?').get(d);
+      if (!row) return null;
+      // Capture the payload first so undo can restore it.
+      const snapshot = this.getTipDay(d);
+      this.db.prepare('DELETE FROM tip_day_employees WHERE tip_day_id = ?').run(row.id);
+      this.db.prepare('DELETE FROM tip_days WHERE id = ?').run(row.id);
+      return snapshot;
+    });
+    return tx(date);
   }
 
-  getPropinasSemana(fechaInicio) {
-    const fechaInicioStr = this._dateToYYYYMMDD(fechaInicio);
-    const [year, month, day] = fechaInicioStr.split('-').map(num => parseInt(num, 10));
-    const fechaFin = new Date(year, month - 1, parseInt(day) + 6, 12, 0, 0);
-    const fechaFinStr = this._dateToYYYYMMDD(fechaFin);
+  getTipDay(date) {
+    const day = this.db.prepare(
+      'SELECT id, date, total_cents, notes FROM tip_days WHERE date = ?'
+    ).get(date);
+    if (!day) return null;
 
-    const query = `
-      SELECT 
-        pd.fecha,
-        pd.monto_total,
-        pd.notas,
-        GROUP_CONCAT(e.nombre) as empleados_nombres,
-        GROUP_CONCAT(e.id) as empleados_ids,
-        COUNT(ed.empleado_id) as total_empleados,
-        CASE WHEN COUNT(ed.empleado_id) > 0 
-          THEN pd.monto_total / COUNT(ed.empleado_id) 
-          ELSE 0 
-        END as monto_por_empleado
-      FROM propinas_dia pd
-      LEFT JOIN empleados_dia ed ON pd.id = ed.propina_dia_id
-      LEFT JOIN empleados e ON ed.empleado_id = e.id
-      WHERE pd.fecha BETWEEN ? AND ?
-      GROUP BY pd.id, pd.fecha
-      ORDER BY pd.fecha
-    `;
-    const stmt = this.db.prepare(query);
-    return stmt.all(fechaInicioStr, fechaFinStr);
+    const employees = this.db.prepare(`
+      SELECT tde.employee_id, e.name AS employee_name, tde.individual_cents, tde.is_override, e.active
+      FROM tip_day_employees tde
+      JOIN employees e ON tde.employee_id = e.id
+      WHERE tde.tip_day_id = ?
+      ORDER BY e.name
+    `).all(day.id);
+
+    return { ...day, employees, total_employees: employees.length };
   }
 
-  _dateToYYYYMMDD(date) {
-    const d = new Date(date);
-    const y = d.getFullYear();
-    const m = String(d.getMonth() + 1).padStart(2, '0');
-    const day = String(d.getDate()).padStart(2, '0');
-    return `${y}-${m}-${day}`;
+  getTipsForWeek(startDate) {
+    const { start, end } = weekRange(startDate);
+    return this.db.prepare(`
+      SELECT
+        td.date,
+        td.total_cents,
+        td.notes,
+        GROUP_CONCAT(e.name) AS employee_names,
+        GROUP_CONCAT(e.id) AS employee_ids,
+        COUNT(tde.employee_id) AS total_employees,
+        CASE WHEN COUNT(tde.employee_id) > 0
+          THEN CAST(td.total_cents AS REAL) / COUNT(tde.employee_id)
+          ELSE 0
+        END AS cents_per_employee
+      FROM tip_days td
+      LEFT JOIN tip_day_employees tde ON td.id = tde.tip_day_id
+      LEFT JOIN employees e ON tde.employee_id = e.id
+      WHERE td.date BETWEEN ? AND ?
+      GROUP BY td.id, td.date
+      ORDER BY td.date
+    `).all(start, end);
   }
 
-  getTotalesEmpleadosSemana(fechaInicio) {
-    const fechaInicioStr = this._dateToYYYYMMDD(fechaInicio);
-    const [year, month, day] = fechaInicioStr.split('-').map(num => parseInt(num, 10));
-    const fechaFin = new Date(year, month - 1, parseInt(day) + 6, 12, 0, 0);
-    const fechaFinStr = this._dateToYYYYMMDD(fechaFin);
+  getTipsForEmployeeWeek(employeeId, startDate) {
+    const { start, end } = weekRange(startDate);
+    return this.db.prepare(`
+      SELECT
+        td.date,
+        td.total_cents,
+        td.notes,
+        (SELECT individual_cents FROM tip_day_employees WHERE tip_day_id = td.id AND employee_id = ?) AS individual_cents,
+        (SELECT COUNT(*) FROM tip_day_employees WHERE tip_day_id = td.id) AS total_employees
+      FROM tip_days td
+      WHERE td.date BETWEEN ? AND ?
+      ORDER BY td.date
+    `).all(employeeId, start, end);
+  }
 
-    // Solo sumar monto_individual cuando la propina es de esta semana (pd.fecha en rango)
-    const query = `
-      SELECT 
+  getEmployeeTotalsForWeek(startDate) {
+    const { start, end } = weekRange(startDate);
+    return this.db.prepare(`
+      SELECT
         e.id,
-        e.nombre,
-        COALESCE(SUM(CASE WHEN pd.fecha BETWEEN ? AND ? THEN ed.monto_individual ELSE 0 END), 0) as total_semana
-      FROM empleados e
-      LEFT JOIN empleados_dia ed ON ed.empleado_id = e.id
-      LEFT JOIN propinas_dia pd ON ed.propina_dia_id = pd.id
-      WHERE e.activo = 1
-      GROUP BY e.id, e.nombre
-      ORDER BY total_semana DESC, e.nombre
-    `;
-    const stmt = this.db.prepare(query);
-    return stmt.all(fechaInicioStr, fechaFinStr);
+        e.name,
+        e.active,
+        COALESCE(SUM(CASE WHEN td.date BETWEEN ? AND ? THEN tde.individual_cents ELSE 0 END), 0) AS week_total_cents
+      FROM employees e
+      LEFT JOIN tip_day_employees tde ON tde.employee_id = e.id
+      LEFT JOIN tip_days td ON tde.tip_day_id = td.id
+      WHERE e.active = 1
+         OR EXISTS (
+           SELECT 1 FROM tip_day_employees tde2
+           JOIN tip_days td2 ON tde2.tip_day_id = td2.id
+           WHERE tde2.employee_id = e.id AND td2.date BETWEEN ? AND ?
+         )
+      GROUP BY e.id, e.name, e.active
+      ORDER BY week_total_cents DESC, e.name
+    `).all(start, end, start, end);
   }
 
-  getPropinasPorEmpleadoSemana(empleadoId, fechaInicio) {
-    const fechaInicioStr = this._dateToYYYYMMDD(fechaInicio);
-    const [year, month, day] = fechaInicioStr.split('-').map(num => parseInt(num, 10));
-    const fechaFin = new Date(year, month - 1, parseInt(day) + 6, 12, 0, 0);
-    const fechaFinStr = this._dateToYYYYMMDD(fechaFin);
+  getHistory({ from, to } = {}) {
+    const clauses = [];
+    const params = [];
+    if (from) { clauses.push('td.date >= ?'); params.push(from); }
+    if (to) { clauses.push('td.date <= ?'); params.push(to); }
+    const where = clauses.length ? 'WHERE ' + clauses.join(' AND ') : '';
 
-    const query = `
-      SELECT 
-        pd.fecha,
-        pd.monto_total,
-        pd.notas,
-        CASE 
-          WHEN (SELECT COUNT(*) FROM empleados_dia WHERE propina_dia_id = pd.id) = 0 THEN 0
-          WHEN EXISTS (SELECT 1 FROM empleados_dia WHERE propina_dia_id = pd.id AND empleado_id = ?)
-          THEN pd.monto_total / (SELECT COUNT(*) FROM empleados_dia WHERE propina_dia_id = pd.id)
-          ELSE 0
-        END as monto_individual,
-        GROUP_CONCAT(e.nombre) as empleados_nombres,
-        GROUP_CONCAT(e.id) as empleados_ids,
-        COUNT(ed.empleado_id) as total_empleados_dia,
-        (SELECT COUNT(*) FROM empleados_dia WHERE propina_dia_id = pd.id) as total_empleados,
-        CASE WHEN (SELECT COUNT(*) FROM empleados_dia WHERE propina_dia_id = pd.id) > 0
-          THEN pd.monto_total / (SELECT COUNT(*) FROM empleados_dia WHERE propina_dia_id = pd.id)
-          ELSE 0
-        END as monto_por_empleado
-      FROM propinas_dia pd
-      LEFT JOIN empleados_dia ed ON pd.id = ed.propina_dia_id
-      LEFT JOIN empleados e ON ed.empleado_id = e.id
-      WHERE pd.fecha BETWEEN ? AND ?
-      GROUP BY pd.id, pd.fecha
-      ORDER BY pd.fecha
-    `;
-    const stmt = this.db.prepare(query);
-    return stmt.all(empleadoId, fechaInicioStr, fechaFinStr);
+    return this.db.prepare(`
+      SELECT
+        td.id,
+        td.date,
+        td.total_cents,
+        td.notes,
+        COUNT(tde.employee_id) AS total_employees,
+        CASE WHEN COUNT(tde.employee_id) > 0 THEN CAST(td.total_cents AS REAL) / COUNT(tde.employee_id) ELSE 0 END AS cents_per_employee
+      FROM tip_days td
+      LEFT JOIN tip_day_employees tde ON td.id = tde.tip_day_id
+      ${where}
+      GROUP BY td.id, td.date
+      ORDER BY td.date DESC
+    `).all(...params);
   }
 
-  getPropinasPorFecha(fecha) {
-    // Primero obtenemos la información general del día
-    const propinaDiaQuery = `
-      SELECT 
-        id,
-        fecha,
-        monto_total,
-        notas
-      FROM propinas_dia
-      WHERE fecha = ?
-    `;
-    
-    const propinaDiaStmt = this.db.prepare(propinaDiaQuery);
-    const propinaDia = propinaDiaStmt.get(fecha);
-    
-    if (!propinaDia) {
-      return null; // No hay propinas para esta fecha
-    }
-    
-    // Luego obtenemos los empleados que trabajaron ese día
-    const empleadosDiaQuery = `
-      SELECT DISTINCT
-        ed.empleado_id,
-        e.nombre as empleado_nombre,
-        ed.monto_individual,
-        ed.notas_empleado
-      FROM empleados_dia ed
-      JOIN empleados e ON ed.empleado_id = e.id
-      WHERE ed.propina_dia_id = ?
-      ORDER BY e.nombre
-    `;
-    
-    const empleadosDiaStmt = this.db.prepare(empleadosDiaQuery);
-    const empleadosDia = empleadosDiaStmt.all(propinaDia.id);
-    
-    // Combinamos los resultados
-    return {
-      ...propinaDia,
-      empleados: empleadosDia,
-      total_empleados: empleadosDia.length
-    };
-  }
-
-  deletePropina(fecha) {
-    const transaction = this.db.transaction((f) => {
-      const getIdStmt = this.db.prepare("SELECT id FROM propinas_dia WHERE fecha = ?");
-      const propina = getIdStmt.get(f);
-      
-      if (propina) {
-        // Eliminar empleados relacionados
-        const deleteEmpleadosStmt = this.db.prepare("DELETE FROM empleados_dia WHERE propina_dia_id = ?");
-        deleteEmpleadosStmt.run(propina.id);
-        
-        // Eliminar propina
-        const deletePropinaStmt = this.db.prepare("DELETE FROM propinas_dia WHERE id = ?");
-        deletePropinaStmt.run(propina.id);
-      }
-    });
-    
-    return transaction(fecha);
-  }
-
-  getHistorico() {
-    const query = `
-      SELECT 
-        pd.id,
-        pd.fecha,
-        pd.monto_total,
-        pd.notas,
-        COUNT(ed.empleado_id) as total_empleados,
-        CASE 
-          WHEN COUNT(ed.empleado_id) > 0 THEN pd.monto_total / COUNT(ed.empleado_id) 
-          ELSE 0 
-        END as monto_por_empleado,
-        CASE 
-          WHEN COUNT(ed.empleado_id) > 0 THEN pd.monto_total / COUNT(ed.empleado_id) 
-          ELSE 0 
-        END as monto_individual
-      FROM propinas_dia pd
-      LEFT JOIN empleados_dia ed ON pd.id = ed.propina_dia_id
-      GROUP BY pd.id, pd.fecha
-      ORDER BY pd.fecha DESC
-    `;
-    
-    const stmt = this.db.prepare(query);
-    return stmt.all();
-  }
-
-  // Métodos para empleados
-  getEmpleados() {
-    const stmt = this.db.prepare("SELECT * FROM empleados WHERE activo = 1 ORDER BY nombre");
-    return stmt.all();
-  }
-
-  getAllEmpleados() {
-    const stmt = this.db.prepare("SELECT * FROM empleados ORDER BY nombre");
-    return stmt.all();
-  }
-
-  addEmpleado(nombre) {
-    const stmt = this.db.prepare("INSERT INTO empleados (nombre) VALUES (?)");
-    return stmt.run(nombre);
-  }
-
-  updateEmpleado(id, nombre) {
-    const stmt = this.db.prepare("UPDATE empleados SET nombre = ? WHERE id = ?");
-    return stmt.run(nombre, id);
-  }
-
-  deleteEmpleado(id) {
-    const transaction = this.db.transaction((empId) => {
-      // Marcar como inactivo en lugar de eliminar
-      const deactivateStmt = this.db.prepare("UPDATE empleados SET activo = 0 WHERE id = ?");
-      deactivateStmt.run(empId);
-    });
-    return transaction(id);
-  }
-
-  reactivateEmpleado(id) {
-    const stmt = this.db.prepare("UPDATE empleados SET activo = 1 WHERE id = ?");
-    return stmt.run(id);
+  getSetupStats() {
+    const employees = this.db.prepare('SELECT COUNT(*) as c FROM employees WHERE active = 1').get().c;
+    const withSchedule = this.db.prepare('SELECT COUNT(DISTINCT employee_id) as c FROM employee_workdays').get().c;
+    const tipDays = this.db.prepare('SELECT COUNT(*) as c FROM tip_days').get().c;
+    return { employees, withSchedule, tipDays };
   }
 }
 
-module.exports = PropinaDatabase;
+module.exports = TipDatabase;

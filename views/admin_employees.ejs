@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="<%= lang %>">
+<head>
+  <%- include('_head', { pageTitle: t('employeesMgmt.title') }) %>
+  <script src="/js/admin_employees.js" defer></script>
+</head>
+<body>
+  <div class="app" data-page="admin-employees">
+    <%- include('_nav') %>
+    <main>
+      <div class="page-header">
+        <h1><%= t('employeesMgmt.title') %></h1>
+        <div class="subtitle"><%= t('employeesMgmt.subtitle') %></div>
+      </div>
+
+      <% if (typeof error !== 'undefined' && error) { %>
+        <div class="alert alert-error"><%= error %></div>
+      <% } %>
+
+      <div class="card">
+        <h2 class="card-title"><%= t('employeesMgmt.addTitle') %></h2>
+        <div class="form-group">
+          <label for="new-employee"><%= t('employeesMgmt.addName') %></label>
+          <input type="text" id="new-employee" maxlength="80" placeholder="e.g. Jordan Miller">
+          <small class="hint"><%= t('employeesMgmt.addNameHint') %></small>
+        </div>
+        <button class="btn btn-primary" id="btn-add" data-action="add-employee">
+          <svg class="icon" aria-hidden="true"><use href="/icons.svg#i-plus"/></svg>
+          <%= t('employeesMgmt.addBtn') %>
+        </button>
+      </div>
+
+      <div class="card">
+        <div class="row" style="justify-content: space-between; align-items: flex-end; margin-bottom: 10px;">
+          <h2 class="card-title" style="margin:0; border:none; padding:0;"><%= t('employeesMgmt.team', { n: employees.length }) %></h2>
+          <input type="search" id="filter" placeholder="<%= t('common.search') %>…" style="max-width: 240px;">
+        </div>
+        <% if (!employees || employees.length === 0) { %>
+          <div class="empty-state">
+            <span class="emoji">👤</span>
+            <p><%= t('employeesMgmt.empty') %></p>
+            <button class="btn btn-secondary" id="btn-samples" data-action="create-samples">
+              <%= t('employeesMgmt.createSamples') %>
+            </button>
+          </div>
+        <% } else { %>
+          <div id="employee-list">
+            <% employees.forEach(function(emp) { %>
+              <div class="employee-row" data-name="<%= emp.name.toLowerCase() %>" id="emp-row-<%= emp.id %>">
+                <div>
+                  <strong id="emp-name-<%= emp.id %>"><%= emp.name %></strong>
+                  <br>
+                  <small>ID: <%= emp.id %></small>
+                </div>
+                <div class="row">
+                  <button type="button" class="btn btn-sm btn-secondary" data-action="edit-employee" data-id="<%= emp.id %>">
+                    <svg class="icon" aria-hidden="true"><use href="/icons.svg#i-edit"/></svg>
+                    <%= t('common.edit') %>
+                  </button>
+                  <button type="button" class="btn btn-sm btn-danger" data-action="delete-employee" data-id="<%= emp.id %>" data-name="<%= emp.name %>">
+                    <svg class="icon" aria-hidden="true"><use href="/icons.svg#i-trash"/></svg>
+                    <%= t('common.remove') %>
+                  </button>
+                </div>
+              </div>
+            <% }); %>
+          </div>
+          <p id="no-matches" class="muted" style="display:none; text-align:center; padding:14px;">No matches.</p>
+        <% } %>
+      </div>
+    </main>
+    <%- include('_footer') %>
+  </div>
+</body>
+</html>

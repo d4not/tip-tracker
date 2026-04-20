@@ -1,0 +1,16 @@
+services:
+  tip-tracker:
+    build: .
+    image: tip-tracker:latest
+    container_name: tip-tracker
+    restart: unless-stopped
+    env_file: .env
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./data:/data
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get('http://127.0.0.1:3000/healthz', r => process.exit(r.statusCode === 200 ? 0 : 1)).on('error', () => process.exit(1))"]
+      interval: 30s
+      timeout: 4s
+      retries: 3

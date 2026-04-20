@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html lang="<%= lang %>">
+<head>
+  <%- include('_head', { pageTitle: t(status === 404 ? 'error.404.title' : 'error.500.title') }) %>
+</head>
+<body>
+  <div class="app">
+    <%- include('_nav') %>
+    <main>
+      <div class="empty-state card">
+        <span class="emoji">🧭</span>
+        <h2><%= t(status === 404 ? 'error.404.title' : 'error.500.title') %></h2>
+        <p class="muted"><%= t(status === 404 ? 'error.404.body' : 'error.500.body') %></p>
+        <a href="/" class="btn btn-primary"><%= t('error.backHome') %></a>
+      </div>
+    </main>
+    <%- include('_footer') %>
+  </div>
+</body>
+</html>

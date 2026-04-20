@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="<%= lang %>">
+<head>
+  <%- include('_head', { pageTitle: t('employees.title') }) %>
+  <script src="/js/employees.js" defer></script>
+</head>
+<body>
+  <div class="app" data-page="employees" data-week="<%= weekStr %>" data-employee="<%= selectedEmployeeId || '' %>">
+    <%- include('_nav') %>
+    <main>
+      <div class="page-header">
+        <h1><%= t('employees.title') %></h1>
+        <div class="subtitle"><%= t('employees.subtitle') %></div>
+      </div>
+
+      <% if (typeof error !== 'undefined' && error) { %>
+        <div class="alert alert-error"><%= error %></div>
+      <% } %>
+
+      <div class="card">
+        <div class="row" style="align-items: flex-end;">
+          <div class="grow">
+            <label for="employeeSelect"><%= t('employees.filterLabel') %></label>
+            <select id="employeeSelect">
+              <option value=""><%= t('employees.filterAll') %></option>
+              <% employees.forEach(function(emp) { %>
+                <option value="<%= emp.id %>" <%= selectedEmployeeId == emp.id ? 'selected' : '' %>>
+                  <%= emp.name %>
+                </option>
+              <% }); %>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="week-nav">
+          <button type="button" class="btn btn-secondary btn-icon" data-action="week-prev" aria-label="<%= t('employees.prevWeek') %>">
+            <svg class="icon" aria-hidden="true"><use href="/icons.svg#i-arrow-left"/></svg>
+          </button>
+          <div class="week-title"><%= t('employees.weekOf', { date: formatDate(weekStr, 'long') }) %></div>
+          <button type="button" class="btn btn-secondary btn-icon" data-action="week-next" aria-label="<%= t('employees.nextWeek') %>">
+            <svg class="icon" aria-hidden="true"><use href="/icons.svg#i-arrow-right"/></svg>
+          </button>
+        </div>
+        <div class="row" style="margin-top: 12px; justify-content: center;">
+          <input type="date" id="weekPicker" value="<%= weekStr %>" aria-label="<%= t('employees.jumpToWeek') %>" style="max-width: 200px;">
+          <button type="button" class="btn btn-secondary" data-action="week-today">
+            <svg class="icon" aria-hidden="true"><use href="/icons.svg#i-calendar"/></svg>
+            <%= t('employees.thisWeek') %>
+          </button>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2 class="card-title"><%= t('employees.weeklyTotals') %></h2>
+        <div class="table-wrapper table-responsive" style="margin:0; box-shadow:none; border:none;">
+          <table>
+            <thead>
+              <tr><th>Employee</th><th>Week total</th></tr>
+            </thead>
+            <tbody>
+              <%
+                var totals = (employeeTotals || []).filter(function(e) { return Number(e.week_total_cents) > 0 || e.active; });
+              %>
+              <% if (totals.length > 0) { %>
+                <% totals.forEach(function(emp) { %>
+                  <tr>
+                    <td data-label="Employee">
+                      <strong><%= emp.name %></strong>
+                      <% if (!emp.active) { %><span class="badge-inactive"><%= t('common.inactive') %></span><% } %>
+                    </td>
+                    <td data-label="Week total" class="amount" data-cents="<%= emp.week_total_cents %>">$<%= (emp.week_total_cents / 100).toFixed(2) %></td>
+                  </tr>
+                <% }); %>
+              <% } else { %>
+                <tr><td colspan="2" class="muted" style="text-align:center;"><%= t('employees.noTipsWeek') %></td></tr>
+              <% } %>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <h3 style="margin:20px 0 12px; color: var(--text-muted); font-size:0.95rem;"><%= t('employees.dailyBreakdown') %></h3>
+      <div class="table-wrapper table-responsive">
+        <table>
+          <thead>
+            <tr>
+              <th><%= t('employees.col.day') %></th>
+              <th><%= t('employees.col.status') %></th>
+              <th><%= t('employees.col.total') %></th>
+              <th><%= t('employees.col.yourShare') %></th>
+              <th><%= t('employees.col.employees') %></th>
+            </tr>
+          </thead>
+          <tbody>
+            <%
+              var dayNames = ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'];
+              var parts = weekStr.split('-').map(function(n){ return parseInt(n,10); });
+              var year=parts[0], month=parts[1], day=parts[2];
+              var now = new Date();
+              var todayStr = now.getFullYear() + '-' + String(now.getMonth()+1).padStart(2,'0') + '-' + String(now.getDate()).padStart(2,'0');
+              for (var i = 0; i < 7; i++) {
+                var d = new Date(year, month - 1, day + i, 12, 0, 0);
+                var dStr = d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+                var tip = tips.find(function(t){ return t.date === dStr; });
+                var myCents = (tip && selectedEmployeeId)
+                  ? (tip.individual_cents != null ? tip.individual_cents : 0)
+                  : (tip && tip.cents_per_employee != null ? tip.cents_per_employee : 0);
+                var numEmp = tip ? (tip.total_employees || 0) : 0;
+                var isToday = dStr === todayStr;
+            %>
+              <tr>
+                <td data-label="<%= t('employees.col.day') %>" class="<%= isToday ? 'cell-today' : '' %>">
+                  <div style="font-weight:600;"><%= dayNames[i] %><%= isToday ? ' · ' + t('common.today') : '' %></div>
+                  <div class="muted" style="font-size:0.85rem;"><%= formatDate(dStr, 'long') %></div>
+                </td>
+                <td data-label="<%= t('employees.col.status') %>">
+                  <% if (selectedEmployeeId) { %>
+                    <% if (tip && tip.individual_cents > 0) { %>
+                      <span class="tag success">✓ <%= t('employees.worked') %></span>
+                    <% } else { %>
+                      <span class="muted"><%= t('employees.off') %></span>
+                    <% } %>
+                  <% } else { %>
+                    <% if (tip) { %>
+                      <span class="tag success">✓ <%= t('employees.tipsRecorded') %></span>
+                    <% } else { %>
+                      <span class="muted"><%= t('employees.noTips') %></span>
+                    <% } %>
+                  <% } %>
+                </td>
+                <td data-label="<%= t('employees.col.total') %>">
+                  <% if (tip && tip.total_cents != null) { %>
+                    <span class="amount" data-cents="<%= tip.total_cents %>">$<%= (tip.total_cents / 100).toFixed(2) %></span>
+                  <% } else { %>
+                    <span class="muted">$0.00</span>
+                  <% } %>
+                </td>
+                <td data-label="<%= t('employees.col.yourShare') %>">
+                  <% if (myCents > 0) { %>
+                    <span class="amount" data-cents="<%= myCents %>">$<%= (myCents / 100).toFixed(2) %></span>
+                  <% } else { %>
+                    <span class="muted">$0.00</span>
+                  <% } %>
+                </td>
+                <td data-label="<%= t('employees.col.employees') %>"><%= tip ? numEmp + ' ' + (numEmp === 1 ? 'person' : 'people') : '—' %></td>
+              </tr>
+            <% } %>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="week-total">
+        <div class="label"><%= selectedEmployeeId ? t('employees.yourTotal') : t('employees.distributedTotal') %></div>
+        <div class="value" data-cents="<%= selectedEmployeeId ? weekTotalCents : totalDistributedCents %>">$<%= ((selectedEmployeeId ? weekTotalCents : totalDistributedCents) / 100).toFixed(2) %></div>
+      </div>
+    </main>
+    <%- include('_footer') %>
+  </div>
+</body>
+</html>

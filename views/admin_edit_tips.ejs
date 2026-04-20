@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="<%= lang %>">
+<head>
+  <%- include('_head', { pageTitle: t('editTips.title') }) %>
+  <script src="/js/admin_edit_tips.js" defer></script>
+</head>
+<body>
+  <div class="app" data-page="admin-edit-tips">
+    <%- include('_nav') %>
+    <main>
+      <div class="page-header">
+        <h1><%= t('editTips.title') %></h1>
+        <div class="subtitle"><%= t('editTips.subtitle') %></div>
+      </div>
+
+      <% if (typeof error !== 'undefined' && error) { %>
+        <div class="alert alert-error"><%= error %></div>
+      <% } %>
+
+      <div class="alert alert-warn">
+        <%= t('editTips.warning') %>
+      </div>
+
+      <div class="card">
+        <label for="filter"><%= t('editTips.search') %></label>
+        <input type="search" id="filter" placeholder="e.g. 2026-04 or holiday">
+      </div>
+
+      <% if (history && history.length > 0) { %>
+        <div class="table-wrapper sticky-head table-responsive">
+          <table>
+            <thead>
+              <tr>
+                <th><%= t('history.col.date') %></th>
+                <th><%= t('history.col.total') %></th>
+                <th><%= t('history.col.people') %></th>
+                <th><%= t('history.col.perPerson') %></th>
+                <th><%= t('history.col.notes') %></th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody id="tbody">
+              <% history.forEach(function(day) { %>
+                <tr data-search="<%= (day.date + ' ' + (day.notes || '')).toLowerCase() %>">
+                  <td data-label="<%= t('history.col.date') %>">
+                    <strong><%= formatDate(day.date, 'long') %></strong>
+                    <div class="muted" style="font-size:0.85rem;"><%= formatDate(day.date, 'weekday') %></div>
+                  </td>
+                  <td data-label="<%= t('history.col.total') %>"><span class="amount" data-cents="<%= day.total_cents %>">$<%= (day.total_cents / 100).toFixed(2) %></span></td>
+                  <td data-label="<%= t('history.col.people') %>"><span class="tag"><%= day.total_employees %></span></td>
+                  <td data-label="<%= t('history.col.perPerson') %>"><span class="amount amount-primary" data-cents="<%= Math.round(day.cents_per_employee) %>">$<%= (day.cents_per_employee / 100).toFixed(2) %></span></td>
+                  <td data-label="<%= t('history.col.notes') %>" style="max-width: 240px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                    <%= day.notes || '—' %>
+                  </td>
+                  <td data-label="">
+                    <div class="row">
+                      <button type="button" class="btn btn-sm btn-secondary" data-action="edit-tip" data-date="<%= day.date %>">
+                        <svg class="icon" aria-hidden="true"><use href="/icons.svg#i-edit"/></svg>
+                        <%= t('common.edit') %>
+                      </button>
+                      <button type="button" class="btn btn-sm btn-danger" data-action="delete-tip" data-date="<%= day.date %>" aria-label="<%= t('common.delete') %>">
+                        <svg class="icon" aria-hidden="true"><use href="/icons.svg#i-trash"/></svg>
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              <% }); %>
+            </tbody>
+          </table>
+        </div>
+        <p id="no-matches" class="muted" style="display:none; text-align:center; padding:14px;">No matches.</p>
+      <% } else { %>
+        <div class="empty-state card">
+          <span class="emoji">📭</span>
+          <p><%= t('editTips.empty') %></p>
+        </div>
+      <% } %>
+    </main>
+
+    <div id="editModal" class="modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+      <div class="modal-content" style="max-width: 640px;">
+        <div class="modal-header">
+          <h2 id="modalTitle">Edit</h2>
+          <button class="close" data-action="close-edit" aria-label="Close">&times;</button>
+        </div>
+        <div class="modal-body" id="editModalBody"></div>
+      </div>
+    </div>
+
+    <div id="confirmModal" class="modal" role="dialog" aria-modal="true">
+      <div class="modal-content" style="max-width: 420px;">
+        <div class="modal-header">
+          <h2><%= t('common.delete') %></h2>
+          <button class="close" data-action="close-confirm" aria-label="Close">&times;</button>
+        </div>
+        <div class="modal-body">
+          <p id="confirmMessage"><%= t('editTips.deleteConfirm') %></p>
+          <div class="modal-actions">
+            <button type="button" class="btn btn-secondary" data-action="close-confirm"><%= t('common.cancel') %></button>
+            <button type="button" class="btn btn-danger" id="confirm-delete-btn" data-action="confirm-delete"><%= t('common.delete') %></button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <%- include('_footer') %>
+  </div>
+</body>
+</html>
